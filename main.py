@@ -51,14 +51,11 @@ DESCRIÇÃO:
 """
 
 
-# POSITION AND ATTITUDE ESTIMATION BY IMAGE, ELSE BY MEMS SENSORS
-IMG_POS_DETER = False
-
 # REAL STATE CONTROL ELSE BY ESTIMATION METHODS
-REAL_CTRL = True
+REAL_CTRL = False
 
 # HOVER FLIGHT ELSE RANDOM INITIAL STATE
-HOVER = False
+HOVER = True
 
 # NUMBER OF EPISODE TIMESTEPS 
 EPISODE_STEPS = 3000
@@ -73,6 +70,8 @@ mydir = os.path.abspath(sys.path[0])
 
 mydir = Filename.fromOsSpecific(mydir).getFullpath()
 
+frame_interval = 10
+
 class MyApp(ShowBase):
     def __init__(self):
         
@@ -82,8 +81,8 @@ class MyApp(ShowBase):
         # CAMERA NEUTRAL POSITION
         self.cam_neutral_pos = panda3d.core.LPoint3f(5, 5, 7)
 
-        self.cam_1 = opencv_camera(self, 'cam_1')
-        self.cam_2 = opencv_camera(self, 'cam_2')
+        self.cam_1 = opencv_camera(self, 'cam_1', frame_interval)
+        self.cam_2 = opencv_camera(self, 'cam_2', frame_interval)
         
         # MODELS SETUP
         world_setup(self, render, mydir)
@@ -97,12 +96,12 @@ class MyApp(ShowBase):
             
     def run_setup(self):
         # DRONE POSITION
-        self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, IMG_POS_DETER, ERROR_AQS_EPISODES, ERROR_PATH, HOVER)
+        self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER)
         
         # COMPUTER VISION
-        self.cv = computer_vision(self, self.quad_model, self.drone.env, self.drone.sensor, self.drone, self.cam_1, self.cam_2, self.camera_cal, mydir, IMG_POS_DETER)        
+        self.cv = computer_vision(self, self.quad_model, self.cam_1, self.cam_2, self.camera_cal)        
         
         # CAMERA CONTROL
-        camera_control(self, self.render) 
+        camera_control(self, self.render)
 app = MyApp()
 app.run()
