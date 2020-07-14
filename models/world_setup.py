@@ -12,10 +12,10 @@ def world_setup(env, render, mydir):
     env.scene.setPos(0, 0, 0)
     
     # Load the skybox
-    env.skybox = env.loader.loadModel(mydir + "/models/skybox.egg")
-    env.skybox.setScale(100,100,100)
-    env.skybox.setPos(0,0,-500)
-    env.skybox.reparentTo(env.render)
+    # env.skybox = env.loader.loadModel(mydir + "/models/skybox.egg")
+    # env.skybox.setScale(100,100,100)
+    # env.skybox.setPos(0,0,-500)
+    # env.skybox.reparentTo(env.render)
 
     # Also add an ambient light and set sky color.
     skycol = panda3d.core.VBase3(135 / 255.0, 206 / 255.0, 235 / 255.0)
@@ -55,7 +55,7 @@ def world_setup(env, render, mydir):
     dlight.setColor(panda3d.core.Vec4(1, 1, 1, 1)) # directional light is dim green
     dlight.getLens().setFilmSize(panda3d.core.Vec2(50, 50))
     dlight.getLens().setNearFar(-100, 100)
-    dlight.setShadowCaster(True, 4096*2, 4096*2)
+    dlight.setShadowCaster(True, 1028*2, 1028*2)
     # dlight.show_frustum()
     dlightNP = render.attachNewNode(dlight)
     dlightNP.setHpr(0,-65,0)
