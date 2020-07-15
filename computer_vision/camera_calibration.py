@@ -36,7 +36,7 @@ class calibration():
             ret, image = self.cam.get_image()
             if ret:
                 img = cv.cvtColor(image, cv.COLOR_RGBA2BGR)
-                self.gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)                
+                self.gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)              
                 ret, corners = cv.findChessboardCorners(self.gray, (self.nCornersCols, self.nCornersRows), 
                                                         cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE + cv.CALIB_CB_FILTER_QUADS+ cv.CALIB_CB_FAST_CHECK)
                 if ret:
@@ -58,7 +58,7 @@ class calibration():
                     self.dist = dist
                     print('Calibration Complete')
                     self.calibrated = True
-                    np.savez(self.path, mtx, dist)
+                    np.savez(self.path, mtx, dist, self.objpoints, self.imgpoints)
                     print('Calibration File Saved')
                     print('Calibration Complete! Running the Algorithm...')
 

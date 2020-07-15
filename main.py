@@ -52,10 +52,10 @@ DESCRIÇÃO:
 
 
 # REAL STATE CONTROL ELSE BY ESTIMATION METHODS
-REAL_CTRL = False
+REAL_CTRL = True
 
 # HOVER FLIGHT ELSE RANDOM INITIAL STATE
-HOVER = True
+HOVER = False
 
 # NUMBER OF EPISODE TIMESTEPS 
 EPISODE_STEPS = 3000
@@ -89,19 +89,21 @@ class MyApp(ShowBase):
         quad_setup(self, render, mydir)
         
         # CALIBRATION ALGORITHM
-        self.camera_cal = calibration(self, self.cam_2)    
+        self.camera_cal1 = calibration(self, self.cam_1)    
+        self.camera_cal2 = calibration(self, self.cam_2)
         
-        if self.camera_cal.calibrated:
+        if self.camera_cal1.calibrated and self.camera_cal2.calibrated:
             self.run_setup()
-            
+
     def run_setup(self):
         # DRONE POSITION
         self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER)
         
         # COMPUTER VISION
-        self.cv = computer_vision(self, self.quad_model, self.cam_1, self.cam_2, self.camera_cal)        
+        self.cv = computer_vision(self, self.quad_model, self.cam_1, self.cam_2, self.camera_cal1, self.camera_cal2)        
         
         # CAMERA CONTROL
         camera_control(self, self.render)
+
 app = MyApp()
 app.run()
