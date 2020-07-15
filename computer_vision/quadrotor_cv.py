@@ -54,7 +54,39 @@ class computer_vision():
 
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
     
-    
+
+    def detect_contourn(self, image):
+
+            hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+            #Define the limits in HSV variables
+            lower = np.array([0, 239, 222])
+            upper = np.array([179, 255, 255])
+            #Define threshold for red color
+            mask = cv.inRange(hsv, lower, upper)
+            #Create a kernel
+            kernel = np.ones((5,5), np.uint8)
+            #Apply opening process
+            opening = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations = 1)
+            #Find BLOB's contours
+            _, cnts, _ = cv.findContours(opening.copy(), cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
+             
+            return  cnts
+
+    def center_mass_calculate(self, image, c):
+        # Compute the center of the contour
+        M = cv.moments(c)
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        perimeter = cv.arcLength(c, True)
+        #Compute the eccentricity
+        metric = (4*math.pi*M["m00"])/perimeter**2
+        if metric > 0.7:
+            #Draw the contour and center of the shape on the image
+            cv.drawContours(image, [c], -1, (255, 0, 0), 1)
+            cv.circle(image, (cX, cY), 1, (255, 0, 0), 1)
+        return cX, cY, metric
+
+
 
     def img_show(self, task):
 
@@ -62,9 +94,7 @@ class computer_vision():
         cY = None
         cX2 = None
         cY2 = None
-        x1 = None
-        y1 = None
-        tvecs = np.array
+
         #Setup de fonte
         font = cv.FONT_HERSHEY_PLAIN
 
@@ -72,90 +102,17 @@ class computer_vision():
             ret, image = self.cv_cam.get_image()
             ret, image2 = self.cv_cam_2.get_image()
             if ret:
-                #Converte frame para HSV
-                hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-                hsv2 = cv.cvtColor(image2, cv.COLOR_BGR2HSV)
-                # l_h = cv.getTrackbarPos("L - H", "Trackbars")
-                # l_s = cv.getTrackbarPos("L - S", "Trackbars")
-                # l_v = cv.getTrackbarPos("L - V", "Trackbars")
-                # u_h = cv.getTrackbarPos("U - H", "Trackbars")
-                # u_s = cv.getTrackbarPos("U - S", "Trackbars")
-                # u_v = cv.getTrackbarPos("U - V", "Trackbars")
-
-                #Detecção de cor através de HSV
-                # lower = np.array([l_h, l_s, l_v])
-                # upper = np.array([u_h, u_s, u_v])
-                lower = np.array([0, 239, 222])
-                upper = np.array([179, 255, 255])
-                #Cria mascara para filtrar o objeto pela cor definida pelos limites
-                mask = cv.inRange(hsv, lower, upper)
-                mask2 = cv.inRange(hsv2, lower, upper)
-                #Cria kernel
-                kernel = np.ones((5,5), np.uint8)
-                #Aplica processo de Abertura (Erosão seguido de Dilatação)
-                opening = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations = 1)
-                opening2 = cv.morphologyEx(mask2, cv.MORPH_OPEN, kernel, iterations = 1)
-    
-    
-                _, cnts, _ = cv.findContours(opening.copy(), cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-                _, cnts2, _ = cv.findContours(opening2.copy(), cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
-
+                cnts = self.detect_contourn(image)
+                cnts2 = self.detect_contourn(image2)
                 # loop over the contours
                 for c in cnts:
-                    # compute the center of the contour
-                    M = cv.moments(c)
-                    cX = int(M["m10"] / M["m00"])
-                    cY = int(M["m01"] / M["m00"])
-                    
-                    perimeter = cv.arcLength(c, True)
-                    metric = (4*math.pi*M["m00"])/perimeter**2
-                    if metric > 0.7:
-        
-                        #draw the contour and center of the shape on the image
-                        cv.drawContours(image, [c], -1, (255, 0, 0), 1)
-                        cv.circle(image, (cX, cY), 1, (255, 0, 0), 1)
-                
+                    cX, cY, _ = self.center_mass_calculate(image, c)
                 for c in cnts2:
-                    # compute the center of the contour
-                    M = cv.moments(c)
-                    cX2 = int(M["m10"] / M["m00"])
-                    cY2 = int(M["m01"] / M["m00"])
-                    
-                    perimeter = cv.arcLength(c, True)
-                    metric = (4*math.pi*M["m00"])/perimeter**2
-                    if metric > 0.7:
-        
-                        #draw the contour and center of the shape on the image
-                        cv.drawContours(image2, [c], -1, (255, 0, 0), 1)
-                        cv.circle(image2, (cX2, cY2), 1, (255, 0, 0), 1)
-
+                    cX2, cY2, _ = self.center_mass_calculate(image2, c)
                 
-                image_b = cv.cvtColor(image, cv.COLOR_RGBA2BGR)
-                gray = cv.cvtColor(image_b, cv.COLOR_BGR2GRAY)
-                fast_gray = cv.resize(gray, None, fx=1, fy=1)
-                corner_good = self.fast.detect(fast_gray)
-                if len(corner_good) > 83:
-                    point = []
-                    for kp in corner_good:
-                        point.append(kp.pt)
-                    point = np.array(point)
-                    mean = np.mean(point, axis=0)
-                    var = np.var(point, axis=0)
-                    if var[0] < 30000 and var[1] < 10000:
-                        ret, corners = cv.findChessboardCorners(image_b, (self.nCornersCols, self.nCornersRows),
-                                                                cv.CALIB_CB_ADAPTIVE_THRESH + cv.CALIB_CB_NORMALIZE_IMAGE)
-                        if ret:
-                            # corners2 = cv.cornerSubPix(self.gray, corners, (1, 1), (-1, -1), self.criteria)
-                            ret, rvecs, tvecs = cv.solvePnP(self.objp, corners, self.mtx1, self.dist1)
-                            x1 = tvecs[0]
-                            y1 = tvecs[1]
-
                 cv.putText(image," Center:"+str(cX)+','+str(cY), (10, 10), font, 1, (255,255,255), 1)
-                cv.putText(image," Real Center:"+str(x1)+','+str(y1), (10, 30), font, 1, (255,255,255), 1)
-                
-                cv.putText(image2," Center:"+str(cX2)+','+str(cY2), (10, 30), font, 1, (255,255,255), 1)
-
+                cv.putText(image2," Center:"+str(cX2)+','+str(cY2), (10, 10), font, 1, (255,255,255), 1)
                 cv.imshow('Drone Camera',image)
-                #cv.imshow('Drone Camera 2 ',image2)
+                cv.imshow('Drone Camera 2 ',image2)
                 cv.waitKey(1)
         return task.cont

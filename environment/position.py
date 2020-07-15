@@ -105,4 +105,6 @@ class quad_position():
         self.quad_model.setHpr(*ang_deg)
         for prop, a in zip(self.prop_models, self.a):
             prop.setHpr(a, 0, 0)
+
+        print(self.env.state[0:5:2])
         return task.cont
