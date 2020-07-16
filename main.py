@@ -1,20 +1,16 @@
-from panda3d.core import loadPrcFile
-loadPrcFile('./config/conf.prc')
-
 import sys, os
 
 #Panda 3D Imports
-import panda3d
 from panda3d.core import Filename
 from direct.showbase.ShowBase import ShowBase
-
+from panda3d.core import loadPrcFile
+loadPrcFile('./config/conf.prc')
 #Custom Functions
 from environment.position import quad_position
 from computer_vision.quadrotor_cv import computer_vision
-from computer_vision.camera_calibration import calibration
 from models.world_setup import world_setup, quad_setup
 from models.camera_control import camera_control
-from computer_vision.img_2_cv import opencv_camera
+from computer_vision.cameras_setup import cameras
 
 """
 INF209B − TÓPICOS ESPECIAIS EM PROCESSAMENTO DE SINAIS:
@@ -71,6 +67,7 @@ mydir = os.path.abspath(sys.path[0])
 mydir = Filename.fromOsSpecific(mydir).getFullpath()
 
 frame_interval = 10
+cam_names = ('cam_1', 'cam_2')
 
 class MyApp(ShowBase):
     def __init__(self):
@@ -78,29 +75,19 @@ class MyApp(ShowBase):
         ShowBase.__init__(self)       
         render = self.render
         
-        # CAMERA NEUTRAL POSITION
-        self.cam_neutral_pos = panda3d.core.LPoint3f(5, 5, 7)
-
-        self.cam_1 = opencv_camera(self, 'cam_1', frame_interval)
-        self.cam_2 = opencv_camera(self, 'cam_2', frame_interval)
-        
         # MODELS SETUP
         world_setup(self, render, mydir)
         quad_setup(self, render, mydir)
-        
-        # CALIBRATION ALGORITHM
-        self.camera_cal1 = calibration(self, self.cam_1)    
-        self.camera_cal2 = calibration(self, self.cam_2)
-        
-        if self.camera_cal1.calibrated and self.camera_cal2.calibrated:
-            self.run_setup()
 
+        # CAMERA NEUTRAL POSITION
+        self.buffer_cameras = cameras(self, frame_interval, cam_names)     
+        
     def run_setup(self):
         # DRONE POSITION
         self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER)
         
         # COMPUTER VISION
-        self.cv = computer_vision(self, self.quad_model, self.cam_1, self.cam_2, self.camera_cal1, self.camera_cal2)        
+        self.cv = computer_vision(self, self.quad_model, self.buffer_cameras.opencv_cameras[0], self.buffer_cameras.opencv_cameras[1], self.buffer_cameras.opencv_cam_cal[0], self.buffer_cameras.opencv_cam_cal[1])        
         
         # CAMERA CONTROL
         camera_control(self, self.render)

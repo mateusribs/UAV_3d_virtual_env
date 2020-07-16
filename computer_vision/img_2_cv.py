@@ -15,11 +15,12 @@ class opencv_camera():
         self.render.taskMgr.add(self.set_active, name) 
         self.buffer.setActive(0)
         
-    def get_image(self):
+    def get_image(self, target_frame=True):
         tex = self.buffer.getTexture()  
         img = tex.getRamImage()
         image = np.frombuffer(img, np.uint8)
-        self.buffer.setActive(0)
+        if target_frame:
+            self.buffer.setActive(0)
         if len(image) > 0:
             image = np.reshape(image, (tex.getYSize(), tex.getXSize(), 4))
             image = cv.resize(image, (0,0), fx=0.5, fy=0.5)
@@ -29,6 +30,6 @@ class opencv_camera():
             return False, None
     
     def set_active(self, task):
-        if task.frame % 10 == 0:
+        if task.frame % 20 == 0:
             self.buffer.setActive(1)
         return task.cont
