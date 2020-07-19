@@ -7,5 +7,5 @@ Status do projeto:
 - Aplica-se uma matriz de transformação entre o referencial do objeto e o referencial inercial (solo). Esta matriz é encontrada através do algoritmo proposto por J.Cashbaugh e C.Kitts (2018). A partir desta transformação, encontra-se a posição e atitude do veículo em relação ao solo, sendo possível assim comparar com os valores encontrados pelos sensores simulados no ambiente virtual.
 
 Próximos passos:
--Utilizar marcações definidas no quadrirrotor e substituir o tabuleiro de xadrez.
--Implementar o filtro de Kalman para melhorar a precisão das medidas.
+ - Utilizar marcações definidas no quadrirrotor e substituir o tabuleiro de xadrez.
+ - Implementar o filtro de Kalman para melhorar a precisão das medidas.
