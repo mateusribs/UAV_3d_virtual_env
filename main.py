@@ -87,7 +87,7 @@ class MyApp(ShowBase):
         self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER)
         
         # COMPUTER VISION
-        self.cv = computer_vision(self, self.quad_model, self.buffer_cameras.opencv_cameras[0], self.buffer_cameras.opencv_cameras[1], self.buffer_cameras.opencv_cam_cal[0], self.buffer_cameras.opencv_cam_cal[1])        
+        self.cv = computer_vision(self, self.quad_model, self.buffer_cameras.opencv_cameras[0], self.buffer_cameras.opencv_cameras[1], self.buffer_cameras.opencv_cam_cal[0], self.buffer_cameras.opencv_cam_cal[1], self.drone)        
         
         # CAMERA CONTROL
         camera_control(self, self.render)

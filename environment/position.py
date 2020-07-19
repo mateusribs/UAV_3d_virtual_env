@@ -68,7 +68,7 @@ class quad_position():
             print(f'Episode Number: {self.episode_n}')
         else:
             progress = self.env.i/self.env.n*100
-            print(f'Progress: {progress:.2f}%', end='\r')
+            #print(f'Progress: {progress:.2f}%', end='\r')
             action = self.policy.actor(torch.FloatTensor(self.network_in).to(device)).cpu().detach().numpy()
             states, _, done = self.env.step(action)
             time_iter = time.time()
@@ -106,5 +106,5 @@ class quad_position():
         for prop, a in zip(self.prop_models, self.a):
             prop.setHpr(a, 0, 0)
 
-        print(self.env.state[0:5:2])
+        #print(self.env.state[0:5:2])
         return task.cont

@@ -3,9 +3,10 @@ import numpy as np
 from collections import deque
 import math
 from computer_vision.detector_setup import detection_setup
+from computer_vision.img_2_cv import opencv_camera
 
 class computer_vision():
-    def __init__(self, render, quad_model, cv_cam, cv_cam_2, camera_cal1, camera_cal2):
+    def __init__(self, render, quad_model, cv_cam, cv_cam_2, camera_cal1, camera_cal2, quad_position):
         
         self.mtx1 = camera_cal1.mtx
         self.dist1 = camera_cal1.dist
@@ -17,16 +18,17 @@ class computer_vision():
         # print("Camera Matrix 2:",self.mtx2)
         # print("Distortion 2:", self.dist2)
         # print("3D point 2:", self.objpoint2)
+        # REAL STATE CONTROL ELSE BY ESTIMATION METHODS
 
         self.fast, self.criteria, self.nCornersCols, self.nCornersRows, self.objp, self.checker_scale, self.checker_sqr_size = detection_setup(render)
 
         self.render = render  
-                
+        self.quad_position = quad_position
         self.render.quad_model.setPos(0, 0, 0)
         self.render.quad_model.setHpr(0, 0, 0)
         
         self.cv_cam = cv_cam
-        self.cv_cam.cam.setPos(-0.2, 0, 6.2)
+        self.cv_cam.cam.setPos(-0.2, 0, 6.1)
         self.cv_cam.cam.setHpr(0, 270, 0)
         self.cv_cam.cam.reparentTo(self.render.render)
         
@@ -36,9 +38,11 @@ class computer_vision():
         # self.cv_cam_2.cam.setHpr(0, 270, 0)
         # #self.cv_cam_2.cam.lookAt(0, 0, 0)
         # self.cv_cam_2.cam.reparentTo(self.render.render)
+        self.obj_frame = []
+        self.ground_frame = []
 
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
-    
+        
 
     def detect_contourn(self, image):
 
@@ -89,19 +93,73 @@ class computer_vision():
         img = cv.line(image, corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
         return img
     
+    def get_element_vector(self, f1, f2, c1, c2):
+        #Where f1 is frameA, f2 is frameB
+        #c1 is the coordinate, let x = 0, y = 1, z = 2
+        vec = []
+        for i in range(np.shape(f1)[0]):
+            cc = f2[i, c1]*f1[i, c2]
+            vec.append(cc)
+        return np.sum(vec)
+
+    def get_element_A(self, f1, c1, c2):
+        A = []
+        for i in range(np.shape(f1)[0]):
+            cc = f1[i, c1]*f1[i, c2]
+            A.append(cc)
+        return np.sum(A)
+
+    def get_element_last(self, f1, c1):
+        last = []
+        for i in range(np.shape(f1)[0]):
+            cc = f1[i, c1]
+            last.append(cc)
+        return np.sum(last)
+
+    def get_transform_frame(self, f1, f2):
+        matrix = np.zeros((3,4))
+        for i in range(3):
+            for j in range(3):
+                matrix[i, j] = self.get_element_vector(f1, f2, i, j)
+                matrix[i, 3] = self.get_element_last(f2, i)
+
+        A = np.zeros((4,4))
+        for i in range(3):
+            for j in range(3):
+                A[i, j] = self.get_element_A(f1, i, j)
+
+        for i in range(3):
+            A[i,3] = self.get_element_last(f1, i)
+            A[3, i] = self.get_element_last(f1, i)
+
+        A[3,3] = np.shape(f1)[0]
+        A_inv = np.linalg.inv(A)
+
+        matrix = np.transpose(matrix)
+
+        T = np.dot(A_inv, matrix)
+        T = np.transpose(T)
+        last_row = np.array([0,0,0,1]).reshape(1,4)
+        T = np.concatenate((T, last_row), axis=0)
+        
+        return T
+
+
+
 
     def get_pose(self, image, objpoints, imgpoints, mtx, dist):
         
-        axis = np.float32([[.1,0,0], [0,.1,0], [0,0,0.1]]).reshape(-1,3)
+        axis = np.float32([[.06,0,0], [0, .06, 0], [0, 0, .06]]).reshape(-1,3)
 
         # Find the rotation and translation vectors.
-        ret, rvecs, tvecs = cv.solvePnP(objpoints, imgpoints, mtx, dist)
+        _, rvecs, tvecs, _ = cv.solvePnPRansac(objpoints, imgpoints, mtx, dist)
         # project 3D points to image plane
         imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
         imgpts = imgpts.astype(np.int)
         img = self.draw(image, imgpoints, imgpts)
+        R_matrix, _ = cv.Rodrigues(rvecs)
         
-        return rvecs, tvecs, image
+        return rvecs, tvecs, R_matrix, image
 
 
     def img_show(self, task):
@@ -110,7 +168,7 @@ class computer_vision():
         cY = None
         cX2 = None
         cY2 = None
-
+        
         #Font setup
         font = cv.FONT_HERSHEY_PLAIN
 
@@ -121,10 +179,21 @@ class computer_vision():
                 ret, corners = self.detect_corners(ret, image)
                 if ret:                
                     if len(corners)==54:
-                        rvecs, tvecs, image = self.get_pose(image, self.objp, corners, self.mtx1, self.dist1)
+                        rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, corners, self.mtx1, self.dist1)
+                        
 
-                        cv.putText(image, "X:"+str(tvecs[0])+"Y:"+str(tvecs[1])+ "Z:"+str(tvecs[2])
-                        , (10,10), font, 1, (255, 255, 255), 1)
+                        #print("Position:" ,self.quad_position.env.state[0:5:2])
+                        obj_pos = np.reshape(tvecs, (1,3))
+                        ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
+
+                        T = self.get_transform_frame(obj_pos, ground_pos)
+                        real_pos = np.dot(T, np.concatenate((tvecs,np.ones((1,1))), axis=0))
+                        print("Ground Frame:", self.quad_position.env.state[0:5:2])
+                        print("Real Frame:", real_pos)
+                        #cv.putText(image, "X:"+str(tvecs[0])+"Y:"+str(tvecs[1])+ "Z:"+str(tvecs[2])
+                        # , (10,10), font, 1, (255, 255, 255), 1)
+
+                        
                 # cnts = self.detect_contourn(image)
                 # cnts2 = self.detect_contourn(image2)
                 # loop over the contours
