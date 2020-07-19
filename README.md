@@ -1,6 +1,6 @@
 # UAV 3D Virtual Environment 
 
-Ambiente virtual 3D para simulação da estimação de posição, velocidade e atitude de um Veículo Aéreo Não Tripulado.
+Ambiente virtual 3D, desenvolvido por @rafaelcostafrf, para simulação da estimação de posição, velocidade e atitude de um Veículo Aéreo Não Tripulado.
 
 Status do projeto:
 - É possível obter a posição e atitude, em relação ao referencial da câmera,  do veículo a partir de um tabuleiro de xadrez que fica na parte superior do veículo. A posição e atitude são encontradas através do algoritmo solvePNP disponibilizado na biblioteca de visão computacional OpenCV.
