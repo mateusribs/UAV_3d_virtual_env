@@ -40,6 +40,7 @@ class computer_vision():
         # self.cv_cam_2.cam.reparentTo(self.render.render)
         self.obj_frame = []
         self.ground_frame = []
+        self.T_flag = False
 
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
         
@@ -181,15 +182,37 @@ class computer_vision():
                     if len(corners)==54:
                         rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, corners, self.mtx1, self.dist1)
                         
-
+                        tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
                         #print("Position:" ,self.quad_position.env.state[0:5:2])
                         obj_pos = np.reshape(tvecs, (1,3))
+                        obj_pos = np.asarray(obj_pos, np.float32)
+                        self.obj_frame.append(obj_pos)
+                
                         ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
+                        ground_pos = np.asarray(ground_pos, np.float32)
+                        self.ground_frame.append(ground_pos)
 
-                        T = self.get_transform_frame(obj_pos, ground_pos)
-                        real_pos = np.dot(T, np.concatenate((tvecs,np.ones((1,1))), axis=0))
-                        print("Ground Frame:", self.quad_position.env.state[0:5:2])
-                        print("Real Frame:", real_pos)
+                        if len(self.obj_frame)==10 and len(self.ground_frame)==10:
+
+                            global T
+
+                            self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(10,3)
+                            self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(10,3)
+
+                            T = self.get_transform_frame(self.obj_frame, self.ground_frame)
+                            self.T_flag = True
+                            self.obj_frame = []
+                            self.ground_frame = []
+
+                        if self.T_flag:
+                            real_pos = np.dot(T, tvec)
+                            erro_X = self.quad_position.env.state[0] - real_pos[0]
+                            erro_Y = self.quad_position.env.state[2] - real_pos[1]
+                            erro_Z = self.quad_position.env.state[4] - real_pos[2]
+                            print("Ground Frame:", self.quad_position.env.state[0:5:2])
+                            print("Real Frame:", np.transpose(real_pos)[:,:3])
+                            print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
+                            
                         #cv.putText(image, "X:"+str(tvecs[0])+"Y:"+str(tvecs[1])+ "Z:"+str(tvecs[2])
                         # , (10,10), font, 1, (255, 255, 255), 1)
 
