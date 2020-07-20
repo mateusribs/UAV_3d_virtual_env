@@ -20,7 +20,7 @@ class computer_vision():
         # print("3D point 2:", self.objpoint2)
         # REAL STATE CONTROL ELSE BY ESTIMATION METHODS
 
-        self.fast, self.criteria, self.nCornersCols, self.nCornersRows, self.objp, self.checker_scale, self.checker_sqr_size = detection_setup(render)
+        #self.fast, self.criteria, self.nCornersCols, self.nCornersRows, self.objp, self.checker_scale, self.checker_sqr_size = detection_setup(render)
 
         self.render = render  
         self.quad_position = quad_position
@@ -28,10 +28,13 @@ class computer_vision():
         self.render.quad_model.setHpr(0, 0, 0)
         
         self.cv_cam = cv_cam
-        self.cv_cam.cam.setPos(-0.2, 0, 6.1)
+        self.cv_cam.cam.setPos(0, 0, 6.5)
         self.cv_cam.cam.setHpr(0, 270, 0)
         self.cv_cam.cam.reparentTo(self.render.render)
         
+        self.objp = np.array([[0, 0, 0.055],[0.025, 0, 0.055], [-0.025, 0, 0.055],
+                            [-0.15, 0, 0.055], [-0.125, 0, 0.055], [-0.175, 0, 0.055], 
+                            [0, 0.15, 0.055], [0.025, 0.15, 0.055], [-0.025, 0.15, 0.055]], dtype=np.float32)
         
         # self.cv_cam_2 = cv_cam_2
         # self.cv_cam_2.cam.setPos(0, 0, 6.5)
@@ -45,14 +48,25 @@ class computer_vision():
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
         
 
-    def detect_contourn(self, image):
-
+    def detect_contourn(self, image, color):
+        
         hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-        #Define the limits in HSV variables
-        lower = np.array([0, 239, 222])
-        upper = np.array([179, 255, 255])
+
+        if color == "Red":
+            #Define the limits in HSV variables
+            self.lower = np.array([0, 35, 225])
+            self.upper = np.array([0, 255, 255])
+        if color == "Green":
+            #Define the limits in HSV variables
+            self.lower = np.array([48, 35, 225])
+            self.upper = np.array([65, 255, 255])
+        if color == "Blue":
+            #Define the limits in HSV variables
+            self.lower = np.array([120, 35, 225])
+            self.upper = np.array([120, 255, 255])
+
         #Define threshold for red color
-        mask = cv.inRange(hsv, lower, upper)
+        mask = cv.inRange(hsv, self.lower, self.upper)
         #Create a kernel
         kernel = np.ones((5,5), np.uint8)
         #Apply opening process
@@ -65,16 +79,23 @@ class computer_vision():
     def center_mass_calculate(self, image, c):
         # Compute the center of the contour
         M = cv.moments(c)
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
+        # cX = int(M["m10"] / M["m00"])
+        # cY = int(M["m01"] / M["m00"])
+
+        (cX, cY), radius = cv.minEnclosingCircle(c)
+        cX = int(cX)
+        cY = int(cY)
+        center = (cX, cY)
+        radius = int(radius)
         perimeter = cv.arcLength(c, True)
         #Compute the eccentricity
         metric = (4*math.pi*M["m00"])/perimeter**2
-        if metric > 0.7:
+        if metric > 0.8:
             #Draw the contour and center of the shape on the image
-            cv.drawContours(image, [c], -1, (255, 0, 0), 1)
-            cv.circle(image, (cX, cY), 1, (255, 0, 0), 1)
-        return cX, cY, metric
+            #cv.drawContours(image, [c], -1, (0, 0, 0), 1)
+            cv.circle(image, center, radius, (0, 0, 0),1)
+            cv.circle(image, center, 1, (0, 0, 0), 1)               
+        return cX, cY, radius
 
 
     def detect_corners(self, ret, image):
@@ -145,9 +166,6 @@ class computer_vision():
         
         return T
 
-
-
-
     def get_pose(self, image, objpoints, imgpoints, mtx, dist):
         
         axis = np.float32([[.06,0,0], [0, .06, 0], [0, 0, .06]]).reshape(-1,3)
@@ -165,71 +183,122 @@ class computer_vision():
 
     def img_show(self, task):
 
-        cX = None
-        cY = None
-        cX2 = None
-        cY2 = None
-        
+        cX1 = 0
+        cY1 = 0
+        cX2 = 0
+        cY2 = 0
+        cX3 = 0
+        cY3 = 0
+        r1 = 0
+        r2 = 0
+        r3 = 0
+
         #Font setup
         font = cv.FONT_HERSHEY_PLAIN
 
         if task.frame % self.cv_cam.frame_int == 1:           
             ret, image = self.cv_cam.get_image()
             # ret, image2 = self.cv_cam_2.get_image()
+
+            #Chessboard 
             if ret:
-                ret, corners = self.detect_corners(ret, image)
-                if ret:                
-                    if len(corners)==54:
-                        rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, corners, self.mtx1, self.dist1)
+            #     ret, corners = self.detect_corners(ret, image)
+            #     if ret:                
+            #         if len(corners)==54:
+            #             rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, corners, self.mtx1, self.dist1)
                         
-                        tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
-                        #print("Position:" ,self.quad_position.env.state[0:5:2])
-                        obj_pos = np.reshape(tvecs, (1,3))
-                        obj_pos = np.asarray(obj_pos, np.float32)
-                        self.obj_frame.append(obj_pos)
+            #             tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
+            #             #print("Position:" ,self.quad_position.env.state[0:5:2])
+            #             obj_pos = np.reshape(tvecs, (1,3))
+            #             obj_pos = np.asarray(obj_pos, np.float32)
+            #             self.obj_frame.append(obj_pos)
                 
-                        ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
-                        ground_pos = np.asarray(ground_pos, np.float32)
-                        self.ground_frame.append(ground_pos)
+            #             ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
+            #             ground_pos = np.asarray(ground_pos, np.float32)
+            #             self.ground_frame.append(ground_pos)
 
-                        if len(self.obj_frame)==10 and len(self.ground_frame)==10:
+            #             if len(self.obj_frame)==10 and len(self.ground_frame)==10:
 
-                            global T
+            #                 global T
 
-                            self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(10,3)
-                            self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(10,3)
+            #                 self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(10,3)
+            #                 self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(10,3)
 
-                            T = self.get_transform_frame(self.obj_frame, self.ground_frame)
-                            self.T_flag = True
-                            self.obj_frame = []
-                            self.ground_frame = []
+            #                 T = self.get_transform_frame(self.obj_frame, self.ground_frame)
+            #                 self.T_flag = True
+            #                 self.obj_frame = []
+            #                 self.ground_frame = []
 
-                        if self.T_flag:
-                            real_pos = np.dot(T, tvec)
-                            erro_X = self.quad_position.env.state[0] - real_pos[0]
-                            erro_Y = self.quad_position.env.state[2] - real_pos[1]
-                            erro_Z = self.quad_position.env.state[4] - real_pos[2]
-                            print("Ground Frame:", self.quad_position.env.state[0:5:2])
-                            print("Real Frame:", np.transpose(real_pos)[:,:3])
-                            print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
+            #             if self.T_flag:
+            #                 real_pos = np.dot(T, tvec)
+            #                 erro_X = self.quad_position.env.state[0] - real_pos[0]
+            #                 erro_Y = self.quad_position.env.state[2] - real_pos[1]
+            #                 erro_Z = self.quad_position.env.state[4] - real_pos[2]
+            #                 print("Ground Frame:", self.quad_position.env.state[0:5:2])
+            #                 print("Real Frame:", np.transpose(real_pos)[:,:3])
+            #                 print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
                             
                         #cv.putText(image, "X:"+str(tvecs[0])+"Y:"+str(tvecs[1])+ "Z:"+str(tvecs[2])
                         # , (10,10), font, 1, (255, 255, 255), 1)
 
                         
-                # cnts = self.detect_contourn(image)
+                cnts_red = self.detect_contourn(image, "Red")
+                cnts_green = self.detect_contourn(image, "Green")
+                cnts_blue = self.detect_contourn(image, "Blue")
                 # cnts2 = self.detect_contourn(image2)
                 # loop over the contours
-                # for c in cnts:
-                #     cX, cY, _ = self.center_mass_calculate(image, c)
+                for c in cnts_red:
+                    cX1, cY1, r1 = self.center_mass_calculate(image, c)
+                for c in cnts_green:
+                    cX2, cY2, r2 = self.center_mass_calculate(image, c)
+                for c in cnts_blue:
+                    cX3, cY3, r3 = self.center_mass_calculate(image, c)
                 # for c in cnts2:
-                #     cX2, cY2, _ = self.center_mass_calculate(image2, c)
+                    # cX2, cY2, _ = self.center_mass_calculate(image2, c)
+                
+                imgpoints = np.array([[cX1, cY1], [cX1+r1, cY1], [cX1-r1, cY1],
+                                    [cX2, cY2], [cX2+r2, cY2], [cX2-r2, cY2],
+                                    [cX3, cY3], [cX3+r3, cY3], [cX3-r3, cY3]], np.float32)
+                rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, imgpoints, self.mtx1, self.dist1)
 
-                #Print the image coordinates on the screen
-                # cv.putText(image," Center:"+str(cX)+','+str(cY), (10, 10), font, 1, (255,255,255), 1)
+                tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
+                #print("Position:" ,self.quad_position.env.state[0:5:2])
+                obj_pos = np.reshape(tvecs, (1,3))
+                obj_pos = np.asarray(obj_pos, np.float32)
+                self.obj_frame.append(obj_pos)
+                
+                ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
+                ground_pos = np.asarray(ground_pos, np.float32)
+                self.ground_frame.append(ground_pos)
+
+                if len(self.obj_frame)==5 and len(self.ground_frame)==5:
+
+                    global T
+
+                    self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(5,3)
+                    self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(5,3)
+
+                    T = self.get_transform_frame(self.obj_frame, self.ground_frame)
+                    self.T_flag = True
+                    self.obj_frame = []
+                    self.ground_frame = []
+
+                    if self.T_flag:
+                        real_pos = np.dot(T, tvec)
+                        erro_X = self.quad_position.env.state[0] - real_pos[0]
+                        erro_Y = self.quad_position.env.state[2] - real_pos[1]
+                        erro_Z = self.quad_position.env.state[4] - real_pos[2]
+                        print("Ground Frame:", self.quad_position.env.state[0:5:2])
+                        print("Real Frame:", np.transpose(real_pos)[:,:3])
+                        print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
+
+                # Print the image coordinates on the screen
+                cv.putText(image," Center:"+str(cX1)+','+str(cY1), (10, 10), font, 1, (255,0,0), 1)
+                cv.putText(image," Center:"+str(cX2)+','+str(cY2), (10, 25), font, 1, (0,255,0), 1)
+                cv.putText(image," Center:"+str(cX3)+','+str(cY3), (10, 40), font, 1, (0,0,255), 1)
                 # cv.putText(image2," Center:"+str(cX2)+','+str(cY2), (10, 10), font, 1, (255,255,255), 1)
 
-            #cv.imshow('Drone Camera',image)
+            cv.imshow('Drone Camera',image)
                 # cv.imshow('Drone Camera 2 ',image2)
             cv.waitKey(1)
 

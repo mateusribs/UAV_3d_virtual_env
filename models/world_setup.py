@@ -96,28 +96,30 @@ def quad_setup(env, render, mydir):
     env.disk_red = env.loader.loadModel(mydir + "/models/disk_red.egg")
     env.disk_red.reparentTo(env.quad_model)
     env.disk_red.setScale(0.05, 0.05, 0.05)
-    env.disk_red.setPos(0, -0.15 , 0.04)
+    env.disk_red.setPos(0, 0 , 0.055)
+
     env.disk_green = env.loader.loadModel(mydir + "/models/disk_green.egg")
     env.disk_green.reparentTo(env.quad_model)
     env.disk_green.setScale(0.05, 0.05, 0.05)
-    env.disk_green.setPos(-0.15, 0 , 0.04)
+    env.disk_green.setPos(-0.15, 0 , 0.055)
+
     env.disk_blue = env.loader.loadModel(mydir + "/models/disk_blue.egg")
     env.disk_blue.reparentTo(env.quad_model)
     env.disk_blue.setScale(0.05, 0.05, 0.05)
-    env.disk_blue.setPos(0, 0.15 , 0.04)
+    env.disk_blue.setPos(0, 0.15 , 0.055)
 
-    # env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
-    # env.checker.reparentTo(env.render)
-    # env.checker_scale = 0.5
-    # env.checker_sqr_size = 0.2046
-    # env.checker.setScale(env.checker_scale, env.checker_scale, 1)
-    # env.checker.setPos(3*env.checker_scale*env.checker_sqr_size+0.06, 2.5*env.checker_scale*env.checker_sqr_size+0.06, 0.001)
-
-    #Cursed Checker
     env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
-    env.checker.reparentTo(env.quad_model)
-    env.checker_scale = 0.1
+    env.checker.reparentTo(env.render)
+    env.checker_scale = 0.5
     env.checker_sqr_size = 0.2046
     env.checker.setScale(env.checker_scale, env.checker_scale, 1)
-    env.checker.setPos(0, 0, 0.06)
+    env.checker.setPos(3*env.checker_scale*env.checker_sqr_size+0.06, 2.5*env.checker_scale*env.checker_sqr_size+0.06, 0.001)
+
+    #Cursed Checker
+    # env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
+    # env.checker.reparentTo(env.quad_model)
+    # env.checker_scale = 0.1
+    # env.checker_sqr_size = 0.2046
+    # env.checker.setScale(env.checker_scale, env.checker_scale, 1)
+    # env.checker.setPos(0, 0, 0.06)
     
