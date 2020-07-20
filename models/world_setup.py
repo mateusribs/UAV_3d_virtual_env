@@ -11,6 +11,8 @@ def world_setup(env, render, mydir):
     env.scene.setScale(1, 1, 1)
     env.scene.setPos(0, 0, 0)
     
+    
+
     # Load the skybox
     # env.skybox = env.loader.loadModel(mydir + "/models/skybox.egg")
     # env.skybox.setScale(100,100,100)
@@ -90,6 +92,20 @@ def quad_setup(env, render, mydir):
     env.cam.reparentTo(env.render)
     env.cam.lookAt(env.quad_model)
     
+
+    env.disk_red = env.loader.loadModel(mydir + "/models/disk_red.egg")
+    env.disk_red.reparentTo(env.quad_model)
+    env.disk_red.setScale(0.05, 0.05, 0.05)
+    env.disk_red.setPos(0, -0.15 , 0.04)
+    env.disk_green = env.loader.loadModel(mydir + "/models/disk_green.egg")
+    env.disk_green.reparentTo(env.quad_model)
+    env.disk_green.setScale(0.05, 0.05, 0.05)
+    env.disk_green.setPos(-0.15, 0 , 0.04)
+    env.disk_blue = env.loader.loadModel(mydir + "/models/disk_blue.egg")
+    env.disk_blue.reparentTo(env.quad_model)
+    env.disk_blue.setScale(0.05, 0.05, 0.05)
+    env.disk_blue.setPos(0, 0.15 , 0.04)
+
     # env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
     # env.checker.reparentTo(env.render)
     # env.checker_scale = 0.5

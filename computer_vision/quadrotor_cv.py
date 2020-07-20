@@ -229,7 +229,7 @@ class computer_vision():
                 # cv.putText(image," Center:"+str(cX)+','+str(cY), (10, 10), font, 1, (255,255,255), 1)
                 # cv.putText(image2," Center:"+str(cX2)+','+str(cY2), (10, 10), font, 1, (255,255,255), 1)
 
-            cv.imshow('Drone Camera',image)
+            #cv.imshow('Drone Camera',image)
                 # cv.imshow('Drone Camera 2 ',image2)
             cv.waitKey(1)
 
