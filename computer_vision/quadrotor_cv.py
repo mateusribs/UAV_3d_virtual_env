@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 from collections import deque
 import math
+from matplotlib import pyplot as plt
 from computer_vision.detector_setup import detection_setup
 from computer_vision.img_2_cv import opencv_camera
 
@@ -12,15 +13,9 @@ class computer_vision():
         self.dist1 = camera_cal1.dist
         self.mtx2 = camera_cal2.mtx
         self.dist2 = camera_cal2.dist
-        # print("Camera Matrix 1:",self.mtx1)
-        # print("Distortion 1:", self.dist1)
-        # print("3D point 1:", self.objpoint1)
-        # print("Camera Matrix 2:",self.mtx2)
-        # print("Distortion 2:", self.dist2)
-        # print("3D point 2:", self.objpoint2)
-        # REAL STATE CONTROL ELSE BY ESTIMATION METHODS
-
-        #self.fast, self.criteria, self.nCornersCols, self.nCornersRows, self.objp, self.checker_scale, self.checker_sqr_size = detection_setup(render)
+        self.imgp1 = camera_cal1.imgpoints
+        self.imgp2 = camera_cal2.imgpoints
+        self.objpoints = camera_cal1.objpoints
 
         self.render = render  
         self.quad_position = quad_position
@@ -32,20 +27,23 @@ class computer_vision():
         self.cv_cam.cam.setHpr(0, 270, 0)
         self.cv_cam.cam.reparentTo(self.render.render)
         
-        self.objp = np.array([[0, 0, 0.055],[0.025, 0, 0.055], [-0.025, 0, 0.055],
-                            [-0.15, 0, 0.055], [-0.125, 0, 0.055], [-0.175, 0, 0.055], 
-                            [0, 0.15, 0.055], [0.025, 0.15, 0.055], [-0.025, 0.15, 0.055]], dtype=np.float32)
+        self.objp = np.array([[0, 0, 0],[0.025, 0, 0], [-0.025, 0, 0],
+                            [-0.15, 0, 0], [-0.125, 0, 0], [-0.175, 0, 0], 
+                            [0, 0.15, 0], [0.025, 0.15, 0], [-0.025, 0.15, 0]], dtype=np.float32)
         
-        # self.cv_cam_2 = cv_cam_2
-        # self.cv_cam_2.cam.setPos(0, 0, 6.5)
-        # self.cv_cam_2.cam.setHpr(0, 270, 0)
-        # #self.cv_cam_2.cam.lookAt(0, 0, 0)
-        # self.cv_cam_2.cam.reparentTo(self.render.render)
+        self.cv_cam_2 = cv_cam_2
+        self.cv_cam_2.cam.setPos(0.1, 0, 6.5)
+        self.cv_cam_2.cam.setHpr(0, 270, 0)
+        #self.cv_cam_2.cam.lookAt(0, 0, 0)
+        self.cv_cam_2.cam.reparentTo(self.render.render)
+
         self.obj_frame = []
         self.ground_frame = []
+        self.distances = []
         self.T_flag = False
 
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
+
         
 
     def detect_contourn(self, image, color):
@@ -72,7 +70,7 @@ class computer_vision():
         #Apply opening process
         opening = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations = 1)
         #Find BLOB's contours
-        _, cnts, _ = cv.findContours(opening.copy(), cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
+        cnts, _ = cv.findContours(opening.copy(), cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)
              
         return  cnts
 
@@ -97,7 +95,6 @@ class computer_vision():
             cv.circle(image, center, 1, (0, 0, 0), 1)               
         return cX, cY, radius
 
-
     def detect_corners(self, ret, image):
 
         if ret:
@@ -112,7 +109,7 @@ class computer_vision():
         corner = tuple(corners[0].ravel())
         img = cv.line(image, corner, tuple(imgpts[0].ravel()), (255,0,0), 5)
         img = cv.line(image, corner, tuple(imgpts[1].ravel()), (0,255,0), 5)
-        img = cv.line(image, corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
+        img = cv.line(image, corner, tuple(imgpts[2].ravel()), (0,255,255), 5)
         return img
     
     def get_element_vector(self, f1, f2, c1, c2):
@@ -192,13 +189,16 @@ class computer_vision():
         r1 = 0
         r2 = 0
         r3 = 0
+        stereo_no_calibrated = True
 
+        global tvecs
         #Font setup
         font = cv.FONT_HERSHEY_PLAIN
+        
 
         if task.frame % self.cv_cam.frame_int == 1:           
             ret, image = self.cv_cam.get_image()
-            # ret, image2 = self.cv_cam_2.get_image()
+            ret, image2 = self.cv_cam_2.get_image()
 
             #Chessboard 
             if ret:
@@ -243,6 +243,7 @@ class computer_vision():
 
                         
                 cnts_red = self.detect_contourn(image, "Red")
+                cnts_red_2 = self.detect_contourn(image2, "Red")
                 cnts_green = self.detect_contourn(image, "Green")
                 cnts_blue = self.detect_contourn(image, "Blue")
                 # cnts2 = self.detect_contourn(image2)
@@ -253,30 +254,32 @@ class computer_vision():
                     cX2, cY2, r2 = self.center_mass_calculate(image, c)
                 for c in cnts_blue:
                     cX3, cY3, r3 = self.center_mass_calculate(image, c)
-                # for c in cnts2:
-                    # cX2, cY2, _ = self.center_mass_calculate(image2, c)
-                
+
+
                 imgpoints = np.array([[cX1, cY1], [cX1+r1, cY1], [cX1-r1, cY1],
                                     [cX2, cY2], [cX2+r2, cY2], [cX2-r2, cY2],
                                     [cX3, cY3], [cX3+r3, cY3], [cX3-r3, cY3]], np.float32)
-                rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, imgpoints, self.mtx1, self.dist1)
-
-                tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
-                #print("Position:" ,self.quad_position.env.state[0:5:2])
-                obj_pos = np.reshape(tvecs, (1,3))
-                obj_pos = np.asarray(obj_pos, np.float32)
-                self.obj_frame.append(obj_pos)
                 
-                ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
-                ground_pos = np.asarray(ground_pos, np.float32)
-                self.ground_frame.append(ground_pos)
+                if cX1 != 0 and cY1 != 0:
+                    rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, imgpoints, self.mtx1, self.dist1)
+                    tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
+                    #print("Position:" ,self.quad_position.env.state[0:5:2])
+                    obj_pos = np.reshape(tvecs, (1,3))
+                    obj_pos = np.asarray(obj_pos, np.float32)
+                    self.obj_frame.append(obj_pos)
+                    
+                    ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
+                    ground_pos = np.asarray(ground_pos, np.float32)
+                    self.ground_frame.append(ground_pos)
+                
 
-                if len(self.obj_frame)==5 and len(self.ground_frame)==5:
+
+                if len(self.obj_frame)==1 and len(self.ground_frame)==1:
 
                     global T
 
-                    self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(5,3)
-                    self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(5,3)
+                    self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(1,3)
+                    self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(1,3)
 
                     T = self.get_transform_frame(self.obj_frame, self.ground_frame)
                     self.T_flag = True
@@ -291,6 +294,8 @@ class computer_vision():
                         print("Ground Frame:", self.quad_position.env.state[0:5:2])
                         print("Real Frame:", np.transpose(real_pos)[:,:3])
                         print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
+                        self.T_flag = False
+
 
                 # Print the image coordinates on the screen
                 cv.putText(image," Center:"+str(cX1)+','+str(cY1), (10, 10), font, 1, (255,0,0), 1)
