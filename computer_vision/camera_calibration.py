@@ -14,6 +14,8 @@ class calibration():
             self.dist = npzfile[npzfile.files[1]]
             self.objpoints = npzfile[npzfile.files[2]]
             self.imgpoints = npzfile[npzfile.files[3]]
+            self.rvecs = npzfile[npzfile.files[4]]
+            self.tvecs = npzfile[npzfile.files[5]]
             self.calibrated = True
             print('Calibration File Loaded')
         except:
@@ -54,13 +56,15 @@ class calibration():
                     h,  w = img.shape[:2]
                     imgpoits = []
                     newcameramtx, roi=cv.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
-                    dist = np.array([[0.0, 0.0, 0.0, 0.0, 0.0]]) #Camera Perfeita (Simulada), logo não há distorção
+                    # dist = np.array([[0.0, 0.0, 0.0, 0.0, 0.0]]) #Camera Perfeita (Simulada), logo não há distorção
                     dst = cv.undistort(img, mtx, dist, None, newcameramtx)    
                     cv.imshow('img', dst)
                     self.mtx = mtx
                     self.dist = dist
+                    self.rvecs = rvecs
+                    self.tvecs = tvecs
                     self.calibrated = True
-                    np.savez(self.path, mtx, dist, self.objpoints, self.imgpoints)
+                    np.savez(self.path, mtx, dist, self.objpoints, self.imgpoints, self.rvecs, self.tvecs)
                     print('Calibration File Saved')
                     print(self.cam.name + ' calibration Complete!')
 

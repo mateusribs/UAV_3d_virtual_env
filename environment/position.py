@@ -6,6 +6,7 @@ from environment.quadrotor_env import quad, sensor
 from environment.quaternion_euler_utility import deriv_quat
 from environment.controller.model import ActorCritic
 from environment.controller.dl_auxiliary import dl_in_gen
+from mission_control.mission_control import mission
 
 ## PPO SETUP ##
 time_int_step = 0.01
@@ -14,13 +15,18 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class quad_position():
     
-    def __init__(self, render, quad_model, prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER):
+    def __init__(self, render, quad_model, prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER, M_C):
         self.REAL_CTRL = REAL_CTRL
         self.IMG_POS_DETER = False
         self.ERROR_AQS_EPISODES = ERROR_AQS_EPISODES
         self.ERROR_PATH = ERROR_PATH
         self.HOVER = HOVER
+        self.M_C = M_C
         
+        self.log_state = []
+        self.log_target = []
+        self.log_input = []
+
         self.quad_model = quad_model
         self.prop_models = prop_models
         self.episode_n = 1
@@ -52,6 +58,15 @@ class quad_position():
         
     def drone_position_task(self, task):
         if task.frame == 0 or self.env.done:
+            #MISSION CONTROL SETUP
+            if self.M_C:
+                self.mission_control = mission(time_int_step)
+                # self.mission_control.sin_trajectory(4000, 1, 0.1, np.array([0, 0, 0]), np.array([1, 1, 0]))
+                self.mission_control.spiral_trajectory(4000, 0.5, np.pi/10, 4, np.array([0,0,0]))
+                # self.mission_control.gen_trajectory(2, np.array([4, -5, 3]), )
+                self.error_mission = np.zeros(14)
+            else:
+                self.error_mission = np.zeros(14)
             self.control_error_list = []
             self.estimation_error_list = []
             if self.HOVER:
@@ -99,12 +114,13 @@ class quad_position():
         ang_deg = (ang[2]*180/np.pi, ang[0]*180/np.pi, ang[1]*180/np.pi)
         pos = (0+pos[0], 0+pos[1], 5+pos[2])
         
-        # self.quad_model.setHpr((45, 0, 45))
-        # self.quad_model.setPos((5, 5, 6))
+        # self.quad_model.setHpr((0, 0, 10))
+        # self.quad_model.setPos((0, 0, 5.2))
         self.quad_model.setPos(*pos)
         self.quad_model.setHpr(*ang_deg)
         for prop, a in zip(self.prop_models, self.a):
             prop.setHpr(a, 0, 0)
 
         #print(self.env.state[0:5:2])
+        #print(self.env.mat_rot)
         return task.cont

@@ -48,10 +48,12 @@ DESCRIÇÃO:
 
 
 # REAL STATE CONTROL ELSE BY ESTIMATION METHODS
-REAL_CTRL = True
+REAL_CTRL = False
 
 # HOVER FLIGHT ELSE RANDOM INITIAL STATE
 HOVER = False
+
+M_C = True
 
 # NUMBER OF EPISODE TIMESTEPS 
 EPISODE_STEPS = 3000
@@ -66,7 +68,7 @@ mydir = os.path.abspath(sys.path[0])
 
 mydir = Filename.fromOsSpecific(mydir).getFullpath()
 
-frame_interval = 10
+frame_interval = 20
 cam_names = ('cam_1', 'cam_2')
 
 class MyApp(ShowBase):
@@ -84,7 +86,7 @@ class MyApp(ShowBase):
         
     def run_setup(self):
         # DRONE POSITION
-        self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER)
+        self.drone = quad_position(self, self.quad_model, self.prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER, M_C)
         
         # COMPUTER VISION
         self.cv = computer_vision(self, self.quad_model, self.buffer_cameras.opencv_cameras[0], self.buffer_cameras.opencv_cameras[1], self.buffer_cameras.opencv_cam_cal[0], self.buffer_cameras.opencv_cam_cal[1], self.drone)        

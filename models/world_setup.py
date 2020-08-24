@@ -67,7 +67,7 @@ def world_setup(env, render, mydir):
 
 def quad_setup(env, render, mydir):
     # Load and transform the quadrotor actor.
-    env.quad_model = env.loader.loadModel(mydir + '/models/quad.egg')
+    env.quad_model = env.loader.loadModel(mydir + '/models/quad10.egg')
     env.quad_model.reparentTo(env.render)
     env.prop_1 = env.loader.loadModel(mydir + '/models/prop.egg')
     env.prop_1.setPos(-0.26,0,0)
@@ -93,20 +93,25 @@ def quad_setup(env, render, mydir):
     env.cam.lookAt(env.quad_model)
     
 
-    env.disk_red = env.loader.loadModel(mydir + "/models/disk_red.egg")
-    env.disk_red.reparentTo(env.quad_model)
-    env.disk_red.setScale(0.05, 0.05, 0.05)
-    env.disk_red.setPos(0, 0 , 0.055)
+    # env.disk_red = env.loader.loadModel(mydir + "/models/disk_red.egg")
+    # env.disk_red.reparentTo(env.quad_model)
+    # env.disk_red.setScale(0.05, 0.05, 0.05)
+    # env.disk_red.setPos(0, 0, 0.09)
 
-    env.disk_green = env.loader.loadModel(mydir + "/models/disk_green.egg")
-    env.disk_green.reparentTo(env.quad_model)
-    env.disk_green.setScale(0.05, 0.05, 0.05)
-    env.disk_green.setPos(-0.15, 0 , 0.055)
+    # env.disk_green = env.loader.loadModel(mydir + "/models/disk_green.egg")
+    # env.disk_green.reparentTo(env.quad_model)
+    # env.disk_green.setScale(0.05, 0.05, 0.05)
+    # env.disk_green.setPos(-0.1, 0, 0.095)
 
-    env.disk_blue = env.loader.loadModel(mydir + "/models/disk_blue.egg")
-    env.disk_blue.reparentTo(env.quad_model)
-    env.disk_blue.setScale(0.05, 0.05, 0.05)
-    env.disk_blue.setPos(0, 0.15 , 0.055)
+    # env.disk_blue = env.loader.loadModel(mydir + "/models/disk_blue.egg")
+    # env.disk_blue.reparentTo(env.quad_model)
+    # env.disk_blue.setScale(0.05, 0.05, 0.05)
+    # env.disk_blue.setPos(0.01, -0.1, 0.055)
+
+    # env.disk_yellow = env.loader.loadModel(mydir + "/models/disk_yellow.egg")
+    # env.disk_yellow.reparentTo(env.quad_model)
+    # env.disk_yellow.setScale(0.05, 0.05, 0.05)
+    # env.disk_yellow.setPos(0.16, 0, 0.065)
 
     env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
     env.checker.reparentTo(env.render)
@@ -115,7 +120,7 @@ def quad_setup(env, render, mydir):
     env.checker.setScale(env.checker_scale, env.checker_scale, 1)
     env.checker.setPos(3*env.checker_scale*env.checker_sqr_size+0.06, 2.5*env.checker_scale*env.checker_sqr_size+0.06, 0.001)
 
-    #Cursed Checker
+    # # #Cursed Checker
     # env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
     # env.checker.reparentTo(env.quad_model)
     # env.checker_scale = 0.1
