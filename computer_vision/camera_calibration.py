@@ -56,7 +56,7 @@ class calibration():
                     h,  w = img.shape[:2]
                     imgpoits = []
                     newcameramtx, roi=cv.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
-                    # dist = np.array([[0.0, 0.0, 0.0, 0.0, 0.0]]) #Camera Perfeita (Simulada), logo não há distorção
+                    dist = np.array([[0.0, 0.0, 0.0, 0.0, 0.0]]) #Camera Perfeita (Simulada), logo não há distorção
                     dst = cv.undistort(img, mtx, dist, None, newcameramtx)    
                     cv.imshow('img', dst)
                     self.mtx = mtx

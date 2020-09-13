@@ -13,8 +13,6 @@ class computer_vision():
 
         self.mtx1 = camera_cal1.mtx
         self.dist1 = camera_cal1.dist
-        self.rvec = camera_cal1.rvecs
-        self.tvec = camera_cal1.tvecs
         print(self.dist1)
 
         self.render = render  
@@ -25,35 +23,22 @@ class computer_vision():
         self.cv_cam = cv_cam
         self.cv_cam.cam.node().getLens().setFilmSize(36,24)
         self.cv_cam.cam.node().getLens().setFocalLength(45)
-        self.cv_cam.cam.setPos(0, 0, 7.5)
-        self.cv_cam.cam.setHpr(0, 270, 0)
+        self.cv_cam.cam.setPos(0, 0, 6.5)
+        self.cv_cam.cam.setHpr(360, 270, 0)
         self.cv_cam.cam.reparentTo(self.render.render)
         
-        r = 0.025
-        self.objp = np.array([[0, 0, 0.06],[0 + r, 0, 0.06], [0 - r, 0, 0.06], [0, 0 + r, 0.06], [0, 0 - r, 0.06], [0 + r/2, 0, 0.06], [0 - r/2, 0, 0.06], [0, 0 + r/2, 0.06], [0, 0 - r/2, 0.06], [0 + r/10, 0, 0.06], [0 - r/10, 0, 0.06], [0, 0 + r/10, 0.06], [0, 0 - r/10, 0.06],
-                             [0, 0.15, 0.04], [0 + r, 0.15, 0.04], [0 - r, 0.15, 0.04], [0, 0.15 + r, 0.04], [0, 0.15 - r, 0.04], [0 + r/2, 0.15, 0.04], [0 - r/2, 0.15, 0.04], [0, 0.15 + r/2, 0.04], [0, 0.15 - r/2, 0.04], [0 + r/10, 0.15, 0.04], [0 - r/10, 0.15, 0.04], [0, 0.15 + r/10, 0.04], [0, 0.15 - r/10, 0.04],
-                             [0.15, 0, 0.04], [0.15 + r, 0, 0.04], [0.15 - r, 0, 0.04], [0.15, 0 + r, 0.04], [0.15, 0 - r, 0.04], [0.15 + r/2, 0, 0.04], [0.15 - r/2, 0, 0.04], [0.15, 0 + r/2, 0.04], [0.15, 0 - r/2, 0.04], [0.15 + r/10, 0, 0.04], [0.15 - r/10, 0, 0.04], [0.15, 0 + r/10, 0.04], [0.15, 0 - r/10, 0.04],
-                             [0, -0.15, 0.04], [0 + r, -0.15, 0.04], [0 - r, -0.15, 0.04], [0, -0.15 + r, 0.04], [0, -0.15 - r, 0.04], [0 + r/2, -0.15, 0.04], [0 - r/2, -0.15, 0.04], [0, -0.15 + r/2, 0.04], [0, -0.15 - r/2, 0.04], [0 + r/10, -0.15, 0.04], [0 - r/10, -0.15, 0.04], [0, -0.15 + r/10, 0.04], [0, -0.15 - r/10, 0.04]], dtype=np.float32)
+        # r = 0.025
+        # self.objp = np.array([[0, 0, 0.06],[0 + r, 0, 0.06], [0 - r, 0, 0.06], [0, 0 + r, 0.06], [0, 0 - r, 0.06], [0 + r/2, 0, 0.06], [0 - r/2, 0, 0.06], [0, 0 + r/2, 0.06], [0, 0 - r/2, 0.06], [0 + r/10, 0, 0.06], [0 - r/10, 0, 0.06], [0, 0 + r/10, 0.06], [0, 0 - r/10, 0.06],
+        #                      [0, 0.15, 0.04], [0 + r, 0.15, 0.04], [0 - r, 0.15, 0.04], [0, 0.15 + r, 0.04], [0, 0.15 - r, 0.04], [0 + r/2, 0.15, 0.04], [0 - r/2, 0.15, 0.04], [0, 0.15 + r/2, 0.04], [0, 0.15 - r/2, 0.04], [0 + r/10, 0.15, 0.04], [0 - r/10, 0.15, 0.04], [0, 0.15 + r/10, 0.04], [0, 0.15 - r/10, 0.04],
+        #                      [0.15, 0, 0.04], [0.15 + r, 0, 0.04], [0.15 - r, 0, 0.04], [0.15, 0 + r, 0.04], [0.15, 0 - r, 0.04], [0.15 + r/2, 0, 0.04], [0.15 - r/2, 0, 0.04], [0.15, 0 + r/2, 0.04], [0.15, 0 - r/2, 0.04], [0.15 + r/10, 0, 0.04], [0.15 - r/10, 0, 0.04], [0.15, 0 + r/10, 0.04], [0.15, 0 - r/10, 0.04],
+        #                      [0, -0.15, 0.04], [0 + r, -0.15, 0.04], [0 - r, -0.15, 0.04], [0, -0.15 + r, 0.04], [0, -0.15 - r, 0.04], [0 + r/2, -0.15, 0.04], [0 - r/2, -0.15, 0.04], [0, -0.15 + r/2, 0.04], [0, -0.15 - r/2, 0.04], [0 + r/10, -0.15, 0.04], [0 - r/10, -0.15, 0.04], [0, -0.15 + r/10, 0.04], [0, -0.15 - r/10, 0.04]], dtype=np.float32)
         
         # self.objp = np.array([[0, 0, 0.06],
         #                      [0, 0.15, 0.04],
         #                      [0.15, 0, 0.04],
         #                      [0, 0.15, 0.04]], dtype = np.float32)
+        
 
-        # def nothing(x):
-        #     pass
-
-        # #Criar janela para trackbar
-        # cv.namedWindow("Trackbars")
-
-        # #Criar trackbars
-        # cv.createTrackbar("L - H", "Trackbars", 0, 179, nothing)
-        # cv.createTrackbar("L - S", "Trackbars", 0, 255, nothing)
-        # cv.createTrackbar("L - V", "Trackbars", 0, 255, nothing)
-        # cv.createTrackbar("U - H", "Trackbars", 179, 179, nothing)
-        # cv.createTrackbar("U - S", "Trackbars", 255, 255, nothing)
-        # cv.createTrackbar("U - V", "Trackbars", 255, 255, nothing)
-         
         self.obj_frame = []
         self.ground_frame = []
         self.distances = []
@@ -199,12 +184,12 @@ class computer_vision():
         
         return T
 
-    def get_pose(self, image, objpoints, imgpoints, mtx, dist, rvec, tvec):
+    def get_pose(self, image, objpoints, imgpoints, mtx, dist):
         
         axis = np.float32([[.05, 0, 0], [0, .05, 0], [0, 0, 0.05]]).reshape(-1,3)
 
         # Find the rotation and translation vectors.
-        _, rvecs, tvecs,_ = cv.solvePnPRansac(objpoints, imgpoints, mtx, dist,rvec, tvec, useExtrinsicGuess=True)
+        _, rvecs, tvecs,_ = cv.solvePnPRansac(objpoints, imgpoints, mtx, dist, iterationsCount=5)
         # project 3D points to image plane
         imgpts, jac = cv.projectPoints(axis, rvecs, tvecs, mtx, dist)
         imgpts = imgpts.astype(np.int)
@@ -212,6 +197,38 @@ class computer_vision():
         R_matrix, _ = cv.Rodrigues(rvecs)
         
         return rvecs, tvecs, R_matrix, image
+
+    def detector_aruco_parameters(self, min, max, step, const):
+        #This function will set the detection parameters of aruco markers
+
+        parameters = cv.aruco.DetectorParameters_create()
+        parameters.adaptiveThreshWinSizeMin = 10
+        parameters.adaptiveThreshWinSizeMax = 23
+        parameters.adaptiveThreshWinSizeStep = 10
+        parameters.adaptiveThreshConstant = 7
+
+        return parameters
+
+    def print_pose(self, image, orientation, translation):
+
+        font = cv.FONT_HERSHEY_PLAIN
+        cv.putText(image, "Roll:"+str(round(orientation[0], 2)), (10,20), font, 1, (0,255,0), 2)
+        cv.putText(image, "Pitch:"+str(round(orientation[1], 2)), (10,40), font, 1, (0,255,0), 2)
+        cv.putText(image, "Yaw:"+str(round(orientation[2], 2)), (10,60), font, 1, (0,255,0), 2)
+
+        cv.putText(image, "X:"+str(round(translation[0], 2)), (10,80), font, 1, (255,0,0), 2)
+        cv.putText(image, "Y:"+str(round(translation[1], 2)), (10,100), font, 1, (255,0,0), 2)
+        cv.putText(image, "Z:"+str(round(translation[2], 2)), (10,120), font, 1, (255,0,0), 2)
+
+    def rot2euler(self, rot):
+        
+        phi = 180*math.atan2(rot[2,1], rot[2,2])/math.pi
+        theta = 180*math.atan2(-rot[2, 0], math.sqrt(rot[2,1]**2 + rot[2,2]**2))/math.pi
+        psi = 180*math.atan2(rot[1,0], rot[0,0])/math.pi
+
+        orientation = np.array([phi, theta, psi])
+
+        return orientation
 
 
     def img_show(self, task):
@@ -233,6 +250,8 @@ class computer_vision():
         #Font setup
         font = cv.FONT_HERSHEY_PLAIN
         
+        #Load the predefinied dictionary
+        dictionary = cv.aruco.Dictionary_get(cv.aruco.DICT_6X6_250)
 
         if task.frame % self.cv_cam.frame_int == 1:           
             ret, image = self.cv_cam.get_image()
@@ -240,6 +259,9 @@ class computer_vision():
 
             ##Chessboard 
             if ret:
+
+################################# CHESSBOARD POSE ESTIMATION ##############################################################################
+
                 # ret, corners = self.detect_corners(ret, image)
                 # if ret:                
                 #     if len(corners)==54:
@@ -297,94 +319,137 @@ class computer_vision():
                 #         cv.putText(image, "X:"+str(tvecs[0])+"Y:"+str(tvecs[1])+ "Z:"+str(tvecs[2])
                 #         , (10,10), font, 1, (255, 255, 255), 1)
 
-                     
-                cnts_red = self.detect_contourn(image, "Red")
-                cnts_green = self.detect_contourn(image, "Green")
-                cnts_blue = self.detect_contourn(image, "Blue")
-                cnts_yellow = self.detect_contourn(image, "Yellow")
-                # loop over the contours
-                for c in cnts_red:
-                    cX1, cY1, r1 = self.center_mass_calculate(image, c)
-                for c in cnts_green:
-                    cX2, cY2, r2 = self.center_mass_calculate(image, c)
-                for c in cnts_blue:
-                    cX3, cY3, r3 = self.center_mass_calculate(image, c)
-                for c in cnts_yellow:
-                    cX4, cY4, r4 = self.center_mass_calculate(image, c)
+
+###################################### CIRCLE MARKERS POSE ESTIMATION #####################################################################
+
+                # cnts_red = self.detect_contourn(image, "Red")
+                # cnts_green = self.detect_contourn(image, "Green")
+                # cnts_blue = self.detect_contourn(image, "Blue")
+                # cnts_yellow = self.detect_contourn(image, "Yellow")
+                # # loop over the contours
+                # for c in cnts_red:
+                #     cX1, cY1, r1 = self.center_mass_calculate(image, c)
+                # for c in cnts_green:
+                #     cX2, cY2, r2 = self.center_mass_calculate(image, c)
+                # for c in cnts_blue:
+                #     cX3, cY3, r3 = self.center_mass_calculate(image, c)
+                # for c in cnts_yellow:
+                #     cX4, cY4, r4 = self.center_mass_calculate(image, c)
 
 
-                imgpoints = np.array([[cX1, cY1], [cX1+r1, cY1], [cX1-r1, cY1],[cX1, cY1+r1], [cX1, cY1-r1], [cX1+r1/2, cY1], [cX1-r1/2, cY1],[cX1, cY1+r1/2], [cX1, cY1-r1/2], [cX1+r1/10, cY1], [cX1-r1/10, cY1],[cX1, cY1+r1/10], [cX1, cY1-r1/10],
-                                    [cX2, cY2], [cX2+r2, cY2], [cX2-r2, cY2], [cX2, cY2+r2], [cX2, cY2-r2], [cX2+r2/2, cY2], [cX2-r2/2, cY2], [cX2, cY2+r2/2], [cX2, cY2-r2/2], [cX2+r2/10, cY2], [cX2-r2/10, cY2], [cX2, cY2+r2/10], [cX2, cY2-r2/10],
-                                    [cX3, cY3], [cX3+r3, cY3], [cX3-r3, cY3], [cX3, cY3+r3], [cX3, cY3-r3], [cX3+r3/2, cY3], [cX3-r3/2, cY3], [cX3, cY3+r3/2], [cX3, cY3-r3/2], [cX3+r3/10, cY3], [cX3-r3/10, cY3], [cX3, cY3+r3/10], [cX3, cY3-r3/10],
-                                    [cX4, cY4], [cX4+r4, cY4], [cX4-r4, cY4], [cX4, cY4+r4], [cX4, cY4-r4], [cX4+r4/2, cY4], [cX4-r4/2, cY4], [cX4, cY4+r4/2], [cX4, cY4-r4/2], [cX4+r4/10, cY4], [cX4-r4/10, cY4], [cX4, cY4+r4/10], [cX4, cY4-r4/10]], np.float32)
+                # imgpoints = np.array([[cX1, cY1], [cX1+r1, cY1], [cX1-r1, cY1],[cX1, cY1+r1], [cX1, cY1-r1], [cX1+r1/2, cY1], [cX1-r1/2, cY1],[cX1, cY1+r1/2], [cX1, cY1-r1/2], [cX1+r1/10, cY1], [cX1-r1/10, cY1],[cX1, cY1+r1/10], [cX1, cY1-r1/10],
+                #                     [cX2, cY2], [cX2+r2, cY2], [cX2-r2, cY2], [cX2, cY2+r2], [cX2, cY2-r2], [cX2+r2/2, cY2], [cX2-r2/2, cY2], [cX2, cY2+r2/2], [cX2, cY2-r2/2], [cX2+r2/10, cY2], [cX2-r2/10, cY2], [cX2, cY2+r2/10], [cX2, cY2-r2/10],
+                #                     [cX3, cY3], [cX3+r3, cY3], [cX3-r3, cY3], [cX3, cY3+r3], [cX3, cY3-r3], [cX3+r3/2, cY3], [cX3-r3/2, cY3], [cX3, cY3+r3/2], [cX3, cY3-r3/2], [cX3+r3/10, cY3], [cX3-r3/10, cY3], [cX3, cY3+r3/10], [cX3, cY3-r3/10],
+                #                     [cX4, cY4], [cX4+r4, cY4], [cX4-r4, cY4], [cX4, cY4+r4], [cX4, cY4-r4], [cX4+r4/2, cY4], [cX4-r4/2, cY4], [cX4, cY4+r4/2], [cX4, cY4-r4/2], [cX4+r4/10, cY4], [cX4-r4/10, cY4], [cX4, cY4+r4/10], [cX4, cY4-r4/10]], np.float32)
                 
 
-                # imgpoints = np.array([[cX1, cY1], [cX2, cY2], [cX3, cY3], [cX4, cY4]], np.float32)
+                # # imgpoints = np.array([[cX1, cY1], [cX2, cY2], [cX3, cY3], [cX4, cY4]], np.float32)
 
 
-                if cX1 != 0 and cY1 != 0:
-                    global R_matrix
+                # if cX1 != 0 and cY1 != 0:
+                #     global R_matrix
 
-                    rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, imgpoints, self.mtx1, self.dist1, self.rvec, self.tvec)                    
-                    tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
-                    #print("Position:" ,self.quad_position.env.state[0:5:2])
-                    obj_pos = np.reshape(tvecs, (1,3))
-                    obj_pos = np.asarray(obj_pos, np.float32)
-                    self.obj_frame.append(obj_pos)
+                #     rvecs, tvecs, R_matrix, image = self.get_pose(image, self.objp, imgpoints, self.mtx1, self.dist1)                    
+                #     tvec = np.concatenate((tvecs, np.ones((1,1))), axis=0)
+                #     #print("Position:" ,self.quad_position.env.state[0:5:2])
+                #     obj_pos = np.reshape(tvecs, (1,3))
+                #     obj_pos = np.asarray(obj_pos, np.float32)
+                #     self.obj_frame.append(obj_pos)
                     
-                    ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
-                    ground_pos = np.asarray(ground_pos, np.float32)
-                    self.ground_frame.append(ground_pos)
+                #     ground_pos = np.reshape(self.quad_position.env.state[0:5:2], (1,3))
+                #     ground_pos = np.asarray(ground_pos, np.float32)
+                #     self.ground_frame.append(ground_pos)
                 
 
 
-                if len(self.obj_frame)==1 and len(self.ground_frame)==1:
+                # if len(self.obj_frame)==1 and len(self.ground_frame)==1:
 
-                    global T
+                #     global T
 
-                    self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(1,3)
-                    self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(1,3)
+                #     self.obj_frame = np.asarray(self.obj_frame, np.float32).reshape(1,3)
+                #     self.ground_frame = np.asarray(self.ground_frame, np.float32).reshape(1,3)
 
-                    T = self.get_transform_frame(self.obj_frame, self.ground_frame)
-                    self.T_flag = True
-                    self.obj_frame = []
-                    self.ground_frame = []
-                    #print("R: ", self.quad_position.env.mat_rot)
+                #     T = self.get_transform_frame(self.obj_frame, self.ground_frame)
+                #     self.T_flag = True
+                #     self.obj_frame = []
+                #     self.ground_frame = []
+                #     #print("R: ", self.quad_position.env.mat_rot)
 
-                    #euler angles from quadrotor
-                    quad_rot = self.quad_position.env.mat_rot
-                    phi_quad = 180*math.atan2(-quad_rot[2,1], quad_rot[2,2])/math.pi
-                    theta_quad = 180*math.asin(quad_rot[2,0])/math.pi
-                    psi_quad = 180*math.atan2(-quad_rot[1,0], quad_rot[0,0])/math.pi
-                    print("Quadrotor Angles")
-                    print("Roll:",phi_quad," Pitch:",theta_quad," Yaw:",psi_quad)
-                    #estimated angles from camera
-                    phi_est = 180*math.atan2(-R_matrix[2,1], R_matrix[2,2])/math.pi
-                    theta_est = 180*math.asin(R_matrix[2, 0])/math.pi
-                    psi_est = 180*math.atan2(-R_matrix[1,0], R_matrix[0,0])/math.pi
-                    print("Estimated Angles")
-                    print("Roll:",phi_est," Pitch:",theta_est," Yaw:",psi_est)
-                    print("Matriz Rotação Original:", quad_rot)
-                    print("Matriz Rotação Estimada:", R_matrix)
+                #     #euler angles from quadrotor
+                #     quad_rot = self.quad_position.env.mat_rot
+                #     phi_quad = 180*math.atan2(-quad_rot[2,1], quad_rot[2,2])/math.pi
+                #     theta_quad = 180*math.asin(quad_rot[2,0])/math.pi
+                #     psi_quad = 180*math.atan2(-quad_rot[1,0], quad_rot[0,0])/math.pi
+                #     print("Quadrotor Angles")
+                #     print("Roll:",phi_quad," Pitch:",theta_quad," Yaw:",psi_quad)
+                #     #estimated angles from camera
+                #     phi_est = 180*math.atan2(-R_matrix[2,1], R_matrix[2,2])/math.pi
+                #     theta_est = 180*math.asin(R_matrix[2, 0])/math.pi
+                #     psi_est = 180*math.atan2(-R_matrix[1,0], R_matrix[0,0])/math.pi
+                #     print("Estimated Angles")
+                #     print("Roll:",phi_est," Pitch:",theta_est," Yaw:",psi_est)
+                #     print("Matriz Rotação Original:", quad_rot)
+                #     print("Matriz Rotação Estimada:", R_matrix)
 
-                    if self.T_flag:
-                        real_pos = np.dot(T, tvec)
-                        erro_X = self.quad_position.env.state[0] - real_pos[0]
-                        erro_Y = self.quad_position.env.state[2] - real_pos[1]
-                        erro_Z = self.quad_position.env.state[4] - real_pos[2]
-                        print("Ground Frame:", self.quad_position.env.state[0:5:2])
-                        print("Real Frame:", np.transpose(real_pos)[:,:3])
-                        # print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
-                        self.T_flag = False
+                #     if self.T_flag:
+                #         real_pos = np.dot(T, tvec)
+                #         erro_X = self.quad_position.env.state[0] - real_pos[0]
+                #         erro_Y = self.quad_position.env.state[2] - real_pos[1]
+                #         erro_Z = self.quad_position.env.state[4] - real_pos[2]
+                #         print("Ground Frame:", self.quad_position.env.state[0:5:2])
+                #         print("Real Frame:", np.transpose(real_pos)[:,:3])
+                #         # print("E_X:",erro_X," E_Y:",erro_Y," E_Y:", erro_Z)
+                #         self.T_flag = False
 
 
-                # Print the image coordinates on the screen
-                cv.putText(image," Center:"+str(cX1)+','+str(cY1), (10, 10), font, 1, (255,0,0), 1)
-                cv.putText(image," Center:"+str(cX2)+','+str(cY2), (10, 25), font, 1, (0,255,0), 1)
-                cv.putText(image," Center:"+str(cX3)+','+str(cY3), (10, 40), font, 1, (0,0,255), 1)
-                cv.putText(image," Center:"+str(cX4)+','+str(cY4), (10, 55), font, 1, (0,255,255), 1)
+                # # Print the image coordinates on the screen
+                # cv.putText(image," Center:"+str(cX1)+','+str(cY1), (10, 10), font, 1, (255,0,0), 1)
+                # cv.putText(image," Center:"+str(cX2)+','+str(cY2), (10, 25), font, 1, (0,255,0), 1)
+                # cv.putText(image," Center:"+str(cX3)+','+str(cY3), (10, 40), font, 1, (0,0,255), 1)
+                # cv.putText(image," Center:"+str(cX4)+','+str(cY4), (10, 55), font, 1, (0,255,255), 1)
 
-            cv.imshow('Drone Camera',image)
-            cv.waitKey(1)
+####################################### ARUCO MARKER POSE ESTIMATION #########################################################################
+
+                image = cv.cvtColor(image, cv.COLOR_BGRA2BGR)
+
+                #Load the predefinied dictionary
+                dictionary = cv.aruco.Dictionary_get(cv.aruco.DICT_6X6_250)
+
+                #Initialize the detector parameters using defaults values
+                parameters = self.detector_aruco_parameters(10, 23, 10, 7)
+
+                #Detect the markers in the image
+                markerCorners, markerIDs, rejectedCandidates = cv.aruco.detectMarkers(image, dictionary, parameters=parameters)
+
+                #If there is a marker compute the pose
+                if np.all(markerIDs != None):
+                    print("Marker Detected")
+                    rvecs, tvecs, _ = cv.aruco.estimatePoseSingleMarkers(markerCorners, 0.1, self.mtx1, self.dist1)
+
+                    #Convert rotation vector to rotation matrix
+                    R_matrix, _ = cv.Rodrigues(rvecs)
+                    #Translation vector
+                    pos_meas = tvecs.ravel()
+
+                    #Draw the pose estimated
+                    for i in range(0, markerIDs.size):
+                        cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvecs[i], tvecs[i], 0.1)
+                    
+                    #Estimated states
+                    #Convert rotation matrix to euler angles (ZYX sequence)
+                    orientation_est = self.rot2euler(R_matrix)
+                    #Print on the screen the orientation and translation values
+                    self.print_pose(image, orientation_est, pos_meas)
+
+                    #Real states
+                    orientation_real = self.rot2euler(self.quad_position.env.mat_rot)
+                    print("Real Orientation:", orientation_real)
+                    print("Real Translation:", self.quad_position.env.state[0:5:2])
+
+
+                cv.aruco.drawDetectedMarkers(image, markerCorners)                
+
+                cv.imshow('Drone Camera',image)
+                cv.waitKey(1)
 
         return task.cont

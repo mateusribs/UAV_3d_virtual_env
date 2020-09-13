@@ -114,8 +114,8 @@ class quad_position():
         ang_deg = (ang[2]*180/np.pi, ang[0]*180/np.pi, ang[1]*180/np.pi)
         pos = (0+pos[0], 0+pos[1], 5+pos[2])
         
-        # self.quad_model.setHpr((0, 0, 10))
-        # self.quad_model.setPos((0, 0, 5.2))
+        # self.quad_model.setHpr((20, 20, 20))
+        # self.quad_model.setPos((0, 0, 5))
         self.quad_model.setPos(*pos)
         self.quad_model.setHpr(*ang_deg)
         for prop, a in zip(self.prop_models, self.a):
