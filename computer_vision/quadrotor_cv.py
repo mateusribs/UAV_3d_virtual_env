@@ -2,9 +2,11 @@ import cv2 as cv
 import numpy as np
 from collections import deque
 import math
+import time
 from matplotlib import pyplot as plt
 from computer_vision.detector_setup import detection_setup
 from computer_vision.img_2_cv import opencv_camera
+
 
 class computer_vision():
     def __init__(self, render, quad_model, cv_cam, cv_cam_2, camera_cal1, camera_cal2, quad_position):
@@ -23,7 +25,7 @@ class computer_vision():
         self.cv_cam = cv_cam
         self.cv_cam.cam.node().getLens().setFilmSize(36,24)
         self.cv_cam.cam.node().getLens().setFocalLength(45)
-        self.cv_cam.cam.setPos(0, 0, 6.5)
+        self.cv_cam.cam.setPos(0, 0, 4.5)
         self.cv_cam.cam.setHpr(360, 270, 0)
         self.cv_cam.cam.reparentTo(self.render.render)
         
@@ -39,13 +41,56 @@ class computer_vision():
         #                      [0, 0.15, 0.04]], dtype = np.float32)
         
 
+        dt = 0.1
+        #Transition Matrix
+        self.A = np.array([[1, 0, 0, dt, 0, 0, 0, 0, 0],
+                           [0, 1, 0, 0, dt, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, dt, 0, 0, 0],
+                           [0, 0, 0, 1, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 1, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 1]])
+        #Measurement Matrix                   
+        self.H = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 1, 0, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 1, 0, 0, 0, 0, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                           [0, 0, 0, 0, 0, 0, 0, 0, 1]])
+        #Covariance Matrix
+        self.P = 0.1*np.eye(9)
+        #Process noise covariance matrix
+        self.Q = 0.001*np.eye(9)
+        #Measurement noise covariance matrix
+        self.R = 10000*np.eye(6)
+        #Input Matrix
+        self.B = np.eye(9)
+        #Control input
+        self.U = np.zeros((9, 1))
+
+
         self.obj_frame = []
         self.ground_frame = []
         self.distances = []
         self.T_flag = False
+        self.pos_x = 1
+        self.pos_y = 1
+        self.pos_z = 4.5
 
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
+        self.render.taskMgr.add(self.cam_displacement, 'Cam Displacement')
 
+    def cam_displacement(self, task):
+        while task.time < 20:
+            self.pos_x -= 0.0
+            self.pos_y += 0.0
+            self.pos_z += 0.01
+            self.cv_cam.cam.setPos(self.pos_x, self.pos_y, self.pos_z)
+            return task.cont
+        print('Done')
+        return task.done
 
     def detect_contourn(self, image, color):
         
@@ -230,7 +275,6 @@ class computer_vision():
 
         return orientation
 
-
     def img_show(self, task):
 
         cX1 = 0
@@ -245,8 +289,11 @@ class computer_vision():
         r2 = 0
         r3 = 0
         r4 = 0
+        pos_x = 0
 
-        global tvecs
+        rvecs = None
+        tvecs = None
+
         #Font setup
         font = cv.FONT_HERSHEY_PLAIN
         
@@ -418,37 +465,49 @@ class computer_vision():
                 #Initialize the detector parameters using defaults values
                 parameters = self.detector_aruco_parameters(10, 23, 10, 7)
 
+                #Create board object
+                board = cv.aruco.GridBoard_create(4, 4, 0.05, 0.01, dictionary)
+
                 #Detect the markers in the image
                 markerCorners, markerIDs, rejectedCandidates = cv.aruco.detectMarkers(image, dictionary, parameters=parameters)
 
                 #If there is a marker compute the pose
-                if np.all(markerIDs != None):
+                if markerIDs is not None:
                     print("Marker Detected")
-                    rvecs, tvecs, _ = cv.aruco.estimatePoseSingleMarkers(markerCorners, 0.1, self.mtx1, self.dist1)
-
+                    rvecs, tvecs, _ = cv.aruco.estimatePoseSingleMarkers(markerCorners, 0.05, self.mtx1, self.dist1, rvecs, tvecs)
+                    print(markerIDs)
                     #Convert rotation vector to rotation matrix
                     R_matrix, _ = cv.Rodrigues(rvecs)
                     #Translation vector
                     pos_meas = tvecs.ravel()
+                    tvecs = np.reshape(tvecs, (3,1))
+                    print(tvecs)
 
                     #Draw the pose estimated
-                    for i in range(0, markerIDs.size):
-                        cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvecs[i], tvecs[i], 0.1)
+ 
+                    image = cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvecs, tvecs, 0.1)
                     
                     #Estimated states
                     #Convert rotation matrix to euler angles (ZYX sequence)
                     orientation_est = self.rot2euler(R_matrix)
                     #Print on the screen the orientation and translation values
                     self.print_pose(image, orientation_est, pos_meas)
+                    print("Estimated Translation:", pos_meas)
+                    print("Estimated Orientation:", orientation_est)
 
                     #Real states
-                    orientation_real = self.rot2euler(self.quad_position.env.mat_rot)
+                    orientation_real = self.rot2euler(self.quad_position.env.mat_rot)   
+                    translation_real = self.quad_position.env.state[0:5:2]
+                    velocity_real = self.quad_position.env.state[1:6:2]
                     print("Real Orientation:", orientation_real)
-                    print("Real Translation:", self.quad_position.env.state[0:5:2])
+                    print("Real Translation:", translation_real)
 
-
-                cv.aruco.drawDetectedMarkers(image, markerCorners)                
-
+                    self.state = np.array([[translation_real[0]], [translation_real[1]], [translation_real[2]],
+                                          [velocity_real[0]], [velocity_real[1]], [velocity_real[2]],
+                                          [orientation_real[0]], [orientation_real[1]], [orientation_real[2]]], np.float32)
+                    
+                    self.measurement = np.array([[pos_meas[0]], [pos_meas[1]], [pos_meas[2]],
+                                                [orientation_est[0]], [orientation_est[1]], [orientation_est[2]]], np.float32)               
                 cv.imshow('Drone Camera',image)
                 cv.waitKey(1)
 

@@ -121,6 +121,12 @@ def quad_setup(env, render, mydir):
     # env.checker.setPos(3*env.checker_scale*env.checker_sqr_size+0.06, 2.5*env.checker_scale*env.checker_sqr_size+0.06, 0.001)
     env.checker.setPos(5,5,0.01)
 
+    env.aruco = env.loader.loadModel(mydir + '/models/aruco.egg')
+    env.aruco.reparentTo(env.render)
+    env.aruco.setScale(1, 1, 1)
+    env.aruco.setHpr(0,0,0)
+    env.aruco.setPos(0,0,0)
+
     # # #Cursed Checker
     # env.checker = env.loader.loadModel(mydir + '/models/checkerboard.egg')
     # env.checker.reparentTo(env.quad_model)
