@@ -62,8 +62,8 @@ class quad_position():
             if self.M_C:
                 self.mission_control = mission(time_int_step)
                 # self.mission_control.sin_trajectory(4000, 1, 0.1, np.array([0, 0, 0]), np.array([1, 1, 0]))
-                self.mission_control.spiral_trajectory(4000, 0.5, np.pi/10, 4, np.array([0,0,0]))
-                # self.mission_control.gen_trajectory(2, np.array([4, -5, 3]), )
+                # self.mission_control.spiral_trajectory(4000, 0.5, np.pi/10, 4, np.array([0,0,0]))
+                self.mission_control.gen_trajectory(2, np.array([4, -5, 3]), )
                 # self.error_mission = np.zeros(14)
             else:
                 self.error_mission = np.zeros(14)
@@ -114,8 +114,8 @@ class quad_position():
         ang_deg = (ang[2]*180/np.pi, ang[0]*180/np.pi, ang[1]*180/np.pi)
         pos = (0+pos[0], 0+pos[1], 5+pos[2])
         
-        self.quad_model.setHpr((20, 20, 20))
-        self.quad_model.setPos((0.5, 0, 4.5))
+        self.quad_model.setHpr((0, 0, 20))
+        self.quad_model.setPos((0, 0, 3.5))
         # self.quad_model.setPos(*pos)
         # self.quad_model.setHpr(*ang_deg)
         for prop, a in zip(self.prop_models, self.a):

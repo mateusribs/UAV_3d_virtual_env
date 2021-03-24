@@ -3,7 +3,7 @@ import panda3d
 class camera_control():
     
     def __init__(self, env, render):
-        self.camera_init = True
+        self.camera_init = False
         self.render = render
         env.taskMgr.add(self.camera_move, 'Camera Movement')
         env.accept('r', self.camera_reset)

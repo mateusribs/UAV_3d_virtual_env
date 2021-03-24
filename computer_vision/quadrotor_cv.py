@@ -9,6 +9,7 @@ import time
 from matplotlib import pyplot as plt
 from computer_vision.detector_setup import detection_setup
 from computer_vision.img_2_cv import opencv_camera
+from environment.quadrotor_env import sensor
 
 
 class computer_vision():
@@ -38,13 +39,29 @@ class computer_vision():
         self.distances = []
         self.T_flag = False
 
+        self.q_ant = np.array([1, 0, 0, 0])
         
         # self.pos_x = 1
         # self.pos_y = 1
         # self.pos_z = 4.5
 
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
+        self.render.taskMgr.add(self.Madgwick, 'Madgwick')
         # self.render.taskMgr.add(self.cam_displacement, 'Cam Displacement')
+
+    def Madgwick(self, task):
+        
+        g = self.quad_position.sensor.gyro()
+        a = self.quad_position.sensor.accel_grav()
+        print(a)
+        q = self.quad_position.sensor.Madgwick_AHRS_Only_Accel(g, a, self.q_ant)
+        self.q_ant = q
+        roll, pitch, yaw = self.computeAngles(q[0], q[1], q[2], q[3])
+        # print("***************************")
+        # print("Attitude Madgwick: {0}, {1}, {2}".format(roll, pitch, yaw))
+        # print("***************************")
+
+        return task.cont
 
     def cam_displacement(self, task):
         while task.time < 20:
@@ -66,6 +83,8 @@ class computer_vision():
 
     def img_show(self, task):
 
+
+        
 
         rvecs = None
         tvecs = None
@@ -98,7 +117,7 @@ class computer_vision():
                 parameters.adaptiveThreshWinSizeMin = 3
                 parameters.adaptiveThreshWinSizeMax = 15
                 parameters.adaptiveThreshWinSizeStep = 3
-                parameters.adaptiveThreshConstant = 28
+                parameters.adaptiveThreshConstant = 20
 
                 parameters.cornerRefinementWinSize = 5
                 parameters.cornerRefinementMethod = cv.aruco.CORNER_REFINE_CONTOUR
@@ -117,11 +136,11 @@ class computer_vision():
 
                 #If there is a marker compute the pose
                 if markerIDs is not None and len(markerIDs)==2:
-                    print("Marker Detected")
+                    # print("Marker Detected")
 
                     for i in range(0, len(markerIDs)):
-                        print("---------")
-                        print(i)
+                        # print("---------")
+                        # print(i)
 
                         if markerIDs[i]==10:
 
@@ -145,8 +164,8 @@ class computer_vision():
                             q_ref = r_ref.as_quat()
                             roll_ref, pitch_ref, yaw_ref = self.computeAngles(q_ref[3], q_ref[0], q_ref[1], q_ref[2])
                             euler_ref = np.array([roll_ref, pitch_ref, yaw_ref])
-                            print("Euler Reference:")
-                            print(euler_ref)
+                            # print("Euler Reference:")
+                            # print(euler_ref)
 
                             cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvec_ref, tvec_ref, 0.5)
                             cv.aruco.drawDetectedMarkers(image, markerCorners[0])
@@ -173,8 +192,8 @@ class computer_vision():
                             q_mov = r_mov.as_quat()
                             roll_mov, pitch_mov, yaw_mov = self.computeAngles(q_mov[3], q_mov[0], q_mov[1], q_mov[2])
                             euler_mov = np.array([roll_mov, pitch_mov, yaw_mov])
-                            print("Euler Movement")
-                            print(euler_mov)
+                            # print("Euler Movement")
+                            # print(euler_mov)
 
                             if T_cr is not None:
                                 #Homogeneous Transformation Object Frame to Fixed Frame
@@ -185,17 +204,36 @@ class computer_vision():
                             #Getting quaternions from rotation matrix
                             r_obj = sci.spatial.transform.Rotation.from_matrix(T_dr[0:3, 0:3])
                             q_obj = r_obj.as_quat()
-                            print(q_obj)
+                            # print(q_obj)
                             roll_obj, pitch_obj, yaw_obj = self.computeAngles(q_obj[3], q_obj[0], q_obj[1], q_obj[2])
                             euler_obj = np.array([roll_obj, pitch_obj, yaw_obj])
+                            
+                            #Real Quadcopter Attitude
+                            attitude_real = self.quad_position.env.mat_rot
+                            r_real = sci.spatial.transform.Rotation.from_matrix(attitude_real)
+                            q_real = r_real.as_quat()
+                            roll_real, pitch_real, yaw_real = self.computeAngles(q_real[3], q_real[0], q_real[1], q_real[2])
+                            print("Attitude Real:{0}, {1}, {2}".format(roll_real, pitch_real, yaw_real))
 
-                            xf_obj = float(T_dr[0,3])
-                            yf_obj = float(T_dr[1,3])
-                            zf_obj = float(T_dr[2,3])
+                            #Marker's Position
+                            zf_obj = float(T_dr[2,3])*0.746 - 0.564
+                            xf_obj = float(T_dr[0,3])*0.913 - 2.21
+                            yf_obj = float(T_dr[1,3])*0.92 - 0.0265
 
+                            xz = -9.37*10**-3*zf_obj + 0.018
+                            yz = 0.0102*zf_obj + -0.0208
 
+                            xf_obj -= xz
+                            yf_obj -= yz
+
+                            #Real Quadcopter's Position
+                            x_real = self.quad_position.env.state[0]
+                            y_real = self.quad_position.env.state[2]
+                            z_real = self.quad_position.env.state[4]
+                            # print("X: {0}, Y: {1}, Z: {2}".format(x_real, y_real, z_real))
+
+                            #Draw ArUco contourn and Axis
                             cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvec_obj, tvec_obj, 0.0925)
-                            # print(tvec_obj)
                             cv.aruco.drawDetectedMarkers(image, markerCorners[0])
 
 
@@ -209,6 +247,11 @@ class computer_vision():
                             cv.putText(image, "Phi:"+str(np.round(float(euler_obj[0]), 2)), (10,40), font, 1, (0,0,255), 2)
                             cv.putText(image, "Theta:"+str(np.round(float(euler_obj[1]), 2)), (10,60), font, 1, (0,255,0), 2)
                             cv.putText(image, "Psi:"+str(np.round(float(euler_obj[2]), 2)), (10,80), font, 1, (255,0,0), 2)
+
+                            cv.putText(image, "Orientacao Real:", (10, 120), font, 1, (255, 255, 255), 2)
+                            cv.putText(image, "Phi:"+str(np.round(float(roll_real), 2)), (10,140), font, 1, (0,0,255), 2)
+                            cv.putText(image, "Theta:"+str(np.round(float(pitch_real), 2)), (10,160), font, 1, (0,255,0), 2)
+                            cv.putText(image, "Psi:"+str(np.round(float(yaw_real), 2)), (10,180), font, 1, (255,0,0), 2)
                             
                             cv.putText(image, "q0:"+str(np.round(float(q_obj[3]), 3)), (10,400), font, 1, (255,255,255), 2)
                             cv.putText(image, "q1:"+str(np.round(float(q_obj[0]), 3)), (10,420), font, 1, (255,255,255), 2)
@@ -217,7 +260,7 @@ class computer_vision():
                             cv.putText(image, "Modulo:" + str(np.round(float(modulo), 3)), (10, 480), font, 1, (255, 0, 0),2)
                     
                     
-
+                
                 cv.imshow('Drone Camera',image)
                 cv.waitKey(1)
 
