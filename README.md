@@ -2,10 +2,9 @@
 
 Ambiente virtual 3D, desenvolvido por @rafaelcostafrf, para simulação da estimação de posição, velocidade e atitude de um Veículo Aéreo Não Tripulado.
 
-Status do projeto:
-- É possível obter a posição e atitude, em relação ao referencial da câmera,  do veículo a partir de um tabuleiro de xadrez que fica na parte superior do veículo. A posição e atitude são encontradas através do algoritmo solvePNP disponibilizado na biblioteca de visão computacional OpenCV.
-- Aplica-se uma matriz de transformação entre o referencial do objeto e o referencial inercial (solo). Esta matriz é encontrada através do algoritmo proposto por J.Cashbaugh e C.Kitts (2018). A partir desta transformação encontra-se a posição e atitude do veículo em relação ao solo, sendo possível assim comparar com os valores encontrados pelos sensores simulados no ambiente virtual.
+Nesta simulação foi implementado o sistema de detecção por marcadores fiduciais ArUco desenvolvidos por (https://www.uco.es/investiga/grupos/ava/node/26)[1]. A partir da detecção é possível realizar o rastreamento do marcador e encontrar sua postura (orientação e posição) em relação a câmera. 
+Juntamente com as informações obtidas pela câmera, utilizou-se a biblioteca https://github.com/mateusribs/quadrotor_environment para simular os sensores presentes no quadrirrotor. As informações obtidas pelo acelerômetro juntamente com o giroscópio foram fundidas através do filtro complementar de Madgwick [2]
 
-Próximos passos:
- - Utilizar marcações definidas no quadrirrotor e substituir o tabuleiro de xadrez.
- - Implementar o filtro de Kalman para melhorar a precisão das medidas.
+
+[1] "Generation of fiducial marker dictionaries using mixed integer linear programming",S. Garrido-Jurado, R. Muñoz Salinas, F.J. Madrid-Cuevas, R. Medina-Carnicer, Pattern Recognition:51, 481-491,2016
+[2] Sebastian OH Madgwick, Andrew JL Harrison, and Ravi Vaidyanathan. Estimation of IMU and MARG orientation using a gradient descent algorithm, 2011 IEEE international conference on rehabilitation robotics. IEEE, 2011.
