@@ -69,6 +69,7 @@ def quad_setup(env, render, mydir):
     # Load and transform the quadrotor actor.
     env.quad_model = env.loader.loadModel(mydir + '/models/quad_aruco.egg')
     env.quad_model.reparentTo(env.render)
+    env.quad_model.setScale(2, 2, 2)
     env.prop_1 = env.loader.loadModel(mydir + '/models/prop.egg')
     env.prop_1.setPos(-0.26,0,0)
     env.prop_1.reparentTo(env.quad_model)
@@ -125,7 +126,7 @@ def quad_setup(env, render, mydir):
     env.aruco.reparentTo(env.render)
     env.aruco.setScale(.4, .4, 1)
     env.aruco.setHpr(0,0,0)
-    env.aruco.setPos(-2,0,0)
+    env.aruco.setPos(0, 0, 0)
 
     # env.aruco = env.loader.loadModel(mydir + '/models/aruco_mov.egg')
     # env.aruco.reparentTo(env.quad_model)

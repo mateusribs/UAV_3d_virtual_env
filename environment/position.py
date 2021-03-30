@@ -16,7 +16,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class quad_position():
     
     def __init__(self, render, quad_model, prop_models, EPISODE_STEPS, REAL_CTRL, ERROR_AQS_EPISODES, ERROR_PATH, HOVER, M_C):
-        self.REAL_CTRL = REAL_CTRL
+        self.REAL_CTRL = True
         self.IMG_POS_DETER = False
         self.ERROR_AQS_EPISODES = ERROR_AQS_EPISODES
         self.ERROR_PATH = ERROR_PATH
@@ -62,15 +62,21 @@ class quad_position():
             if self.M_C:
                 self.mission_control = mission(time_int_step)
                 # self.mission_control.sin_trajectory(4000, 1, 0.1, np.array([0, 0, 0]), np.array([1, 1, 0]))
-                # self.mission_control.spiral_trajectory(4000, 0.5, np.pi/10, 4, np.array([0,0,0]))
-                self.mission_control.gen_trajectory(2, np.array([4, -5, 3]), )
+                # self.mission_control.spiral_trajectory(4000, 0.5, np.pi/10, 1, np.array([0,0,0]))
+                self.mission_control.gen_trajectory(4000, np.array([0, 0, 0]))
                 # self.error_mission = np.zeros(14)
             else:
                 self.error_mission = np.zeros(14)
             self.control_error_list = []
             self.estimation_error_list = []
-            if self.HOVER:
+            if self.HOVER and self.episode_n==1:
                 in_state = np.array([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
+            # elif self.HOVER and self.episode_n==2:
+            #     in_state = np.array([0, 0, 0.3, 0, 0, 0, 0.940, 0.342, 0.000, 0.000, 0, 0, 0])
+            # elif self.HOVER and self.episode_n==3:
+            #     in_state = np.array([0, 0, 0.3, 0, 0, 0, 0.940, 0.000, 0.342, 0.000, 0, 0, 0])
+            # elif self.HOVER and self.episode_n==4:
+            #     in_state = np.array([0, 0, 0.3, 0, 0, 0, 0.925, 0.163, 0.337, 0.059, 0, 0, 0])
             else:
                 in_state = None
             states, action = self.env.reset(in_state)
@@ -113,9 +119,11 @@ class quad_position():
     
         ang_deg = (ang[2]*180/np.pi, ang[0]*180/np.pi, ang[1]*180/np.pi)
         pos = (0+pos[0], 0+pos[1], 5+pos[2])
+
+       
         
-        self.quad_model.setHpr((0, 0, 20))
-        self.quad_model.setPos((0, 0, 3.5))
+        self.quad_model.setHpr((0, 0, 0))
+        self.quad_model.setPos((0, 0, 3))
         # self.quad_model.setPos(*pos)
         # self.quad_model.setHpr(*ang_deg)
         for prop, a in zip(self.prop_models, self.a):
@@ -124,3 +132,4 @@ class quad_position():
         #print(self.env.state[0:5:2])
         #print(self.env.mat_rot)
         return task.cont
+    

@@ -10,7 +10,7 @@ class opencv_camera():
         self.cam = self.render.makeCamera(self.buffer)
         self.cam.setName(name)     
         self.cam.node().getLens().setFilmSize(36, 24)
-        self.cam.node().getLens().setFocalLength(45)
+        self.cam.node().getLens().setFocalLength(40)
         self.name = name
         self.render.taskMgr.add(self.set_active, name) 
         self.buffer.setActive(0)

@@ -475,16 +475,53 @@ class sensor():
         read_accel = np.dot(self.quad.mat_rot.T, self.quad.accel.flatten())
         return read_error+read_accel
     
-    def accel_grav(self):
+    def accel_grav(self, norm=True):
         
-        gravity_vec = np.array([0, 0, 9.81])
+        gravity_vec = np.array([0, 0, -9.81])
 
         self.a_b_grav = self.a_b_grav + self.a_b_d*self.quad.t_step
         #Gravity vector as read from body sensor
-        gravity_body = np.dot(self.quad.mat_rot.T, gravity_vec) + np.random.normal(np.random.random(3)*self.a_b_grav, self.a_std, 3)
+        gravity_body = np.dot(self.quad.mat_rot.T, gravity_vec)+ np.random.normal(np.random.random(3)*self.a_b_grav, self.a_std, 3)
+
+        if norm:
+
+            ax = gravity_body[0]
+            ay = gravity_body[1]
+            az = gravity_body[2]
+
+            if ax !=0 and ay != 0 and az != 0:
+
+                # Normalise accelerometer measurement
+                recipNorm = 1/(math.sqrt(ax * ax + ay * ay + az * az))
+                ax *= recipNorm
+                ay *= recipNorm
+                az *= recipNorm
+
+                gravity_body = np.array([ax, ay, az])
 
         return gravity_body
     
+    def mag_gauss(self, norm=True):
+
+        magnet_vec = np.array([-4047, 12911, -9899])*0.01
+        self.m_b = self.m_b + self.m_b_d*self.quad.t_step
+        magnet_body = np.dot(self.quad.mat_rot.T, magnet_vec) + np.random.normal(np.random.random(3)*self.m_b, self.m_std, 3)
+
+        mx = magnet_body[0]
+        my = magnet_body[1]
+        mz = magnet_body[2]
+
+        if norm:
+            recipNorm = 1/math.sqrt(mx * mx + my * my + mz * mz)
+            mx *= recipNorm
+            my *= recipNorm
+            mz *= recipNorm
+
+            magnet_body = np.array([mx, my, mz])
+
+        return magnet_body
+
+
     def gyro(self):
         
         self.g_b = self.g_b + self.g_b_d*self.quad.t_step
@@ -605,11 +642,15 @@ class sensor():
             q2q2 = q2 * q2
             q3q3 = q3 * q3
 
+            f_g1 = 2*(q0*q2 - q1*q3) - ax
+            f_g2 = -2*(q0*q1 + q2*q3) - ay
+            f_g3 = 2*(q1q1 + q2q2 - 0.5) - az
+
             # Gradient decent algorithm corrective step
-            s0 = _4q0 * q2q2 + _2q2 * ax + _4q0 * q1q1 - _2q1 * ay
-            s1 = _4q1 * q3q3 - _2q3 * ax + 4.0 * q0q0 * q1 - _2q0 * ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * az
-            s2 = 4.0 * q0q0 * q2 + _2q0 * ax + _4q2 * q3q3 - _2q3 * ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * az
-            s3 = 4.0 * q1q1 * q3 - _2q1 * ax + 4.0 * q2q2 * q3 - _2q2 * ay
+            s0 = _2q2*f_g1 - _2q1*f_g2
+            s1 = -_2q3*f_g1 - _2q0*f_g2 + _4q1*f_g3
+            s2 = _2q0*f_g1 - _2q3*f_g2 + _4q2*f_g3
+            s3 = -_2q1*f_g1 - _2q2*f_g2
             recipNorm = 1/ (math.sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3)) ## normalise step magnitude
             s0 *= recipNorm
             s1 *= recipNorm

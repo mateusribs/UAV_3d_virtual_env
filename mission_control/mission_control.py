@@ -53,7 +53,35 @@ class mission():
             z = step*rate*self.time_step
             self.trajectory[step, :] = center + np.array([x, y, z]) - np.array([radius, 0, 0])
             self.velocity[step, :] = np.array([-np.sin(a)*circular_rate*radius, np.cos(a)*circular_rate*radius,  rate])
-            
+
+    def tornado_trajectory(self, steps, radius, freq, power, alpha, height_i, height_f):
+
+        self.trajectory_step = 0
+        self.trajectory_total_steps = steps
+        self.trajectory = np.zeros([steps, 3])
+        self.velocity = np.zeros([steps, 3])
+        self.trajectory_timesteps = np.arange(0, steps, 1)
+        self.alpha = alpha
+        self.power = power
+        self.height_i = height_i
+        self.height_f = height_f
+        self.d_height = height_f - height_i
+
+        for step in self.trajectory_timesteps:
+            # Trajectory 6
+            r_2 = radius/500
+            x = (r_2*step**self.power+radius)*np.cos(self.alpha)
+            y = (r_2*step**self.power+radius)*np.sin(self.alpha)
+            z = self.height_i + self.d_height/step[-1]*step
+
+            x_dot = self.power*r_2*step**(self.power-1)*np.cos(self.alpha)-(r_2*step**(self.power)+radius)*np.sin(self.alpha)*2*np.pi*freq
+            y_dot = self.power*r_2*step**(self.power-1)*np.sin(self.alpha)+(r_2*step**(self.power)+radius)*np.cos(self.alpha)*2*np.pi*freq
+            z_dot = self.d_height/(step[-1])*np.ones(len(step))
+
+            x_dot_dot = (self.power*(self.power-1)*r_2*step**(self.power-2)*np.cos(self.alpha)-self.power*r_2*step**(self.power-1)*np.sin(self.alpha)*2*np.pi*freq)-(self.power*r_2*step**(self.power-1)*np.sin(self.alpha)*2*np.pi*freq+(r_2*step**self.power+r_2)*np.cos(self.alpha)*(2*np.pi*freq)**2)
+            y_dot_dot = (self.power*(self.power-1)*r_2*step**(self.power-2)*np.sin(self.alpha)+self.power*r_2*step**(self.power-1)*np.cos(self.alpha)*2*np.pi*freq)+(self.power*r_2*step**(self.power-1)*np.cos(self.alpha)*2*np.pi*freq-(r_2*step**self.power+r_2)*np.sin(self.alpha)*(2*np.pi*freq)**2)
+            z_dot_dot = 0*np.ones(len(step))
+
     def get_error(self, time):
         if self.trajectory_step == self.trajectory_total_steps:
             self.trajectory[-1,:] = self.trajectory[-1,:] + self.velocity[-1,:]*self.time_step
