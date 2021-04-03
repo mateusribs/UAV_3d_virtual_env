@@ -30,6 +30,6 @@ class opencv_camera():
             return False, None
     
     def set_active(self, task):
-        if task.frame % 20 == 0:
+        if task.frame % 2 == 0:
             self.buffer.setActive(1)
         return task.cont

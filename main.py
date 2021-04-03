@@ -58,7 +58,7 @@ M_C = False
 
 
 # NUMBER OF EPISODE TIMESTEPS 
-EPISODE_STEPS = 250
+EPISODE_STEPS = 500
 
 # TOTAL NUMBER OF EPISODES
 ERROR_AQS_EPISODES = 4
@@ -70,7 +70,7 @@ mydir = os.path.abspath(sys.path[0])
 
 mydir = Filename.fromOsSpecific(mydir).getFullpath()
 
-frame_interval = 20
+frame_interval = 2
 cam_names = ('cam_1', 'cam_2')
 
 class MyApp(ShowBase):

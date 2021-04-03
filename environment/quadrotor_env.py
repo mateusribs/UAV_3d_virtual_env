@@ -489,6 +489,7 @@ class sensor():
             ay = gravity_body[1]
             az = gravity_body[2]
 
+
             if ax !=0 and ay != 0 and az != 0:
 
                 # Normalise accelerometer measurement
@@ -497,13 +498,13 @@ class sensor():
                 ay *= recipNorm
                 az *= recipNorm
 
-                gravity_body = np.array([ax, ay, az])
+                gravity_body = np.array([[ax, ay, az]], dtype='float32')
 
         return gravity_body
     
     def mag_gauss(self, norm=True):
 
-        magnet_vec = np.array([-4047, 12911, -9899])*0.01
+        magnet_vec = np.array([-65.269, 165.115, -144.205])
         self.m_b = self.m_b + self.m_b_d*self.quad.t_step
         magnet_body = np.dot(self.quad.mat_rot.T, magnet_vec) + np.random.normal(np.random.random(3)*self.m_b, self.m_std, 3)
 
@@ -551,7 +552,7 @@ class sensor():
     
     def triad(self):
         gravity_vec = np.array([0, 0, -G])
-        magnet_vec = np.array([-4047, 12911, -9899])*0.01 
+        magnet_vec = np.array([-65.269, 165.115,-144.205]) #mGauss
         
         #Magnetic Vector of Santo André - Brasil in MiliGauss
         #https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml#igrfwmm
@@ -570,15 +571,17 @@ class sensor():
         #Body Coordinates
         t1b = gravity_body/np.linalg.norm(gravity_body)
         
+        
+
         t2b = np.cross(gravity_body, magnet_body)
         t2b = t2b/np.linalg.norm(t2b)
-        
+
         t3b = np.cross(t1b, t2b)
         t3b = t3b/np.linalg.norm(t3b)
-        
+
         tb = np.vstack((t1b, t2b, t3b)).T
         
-        
+
         #Inertial Coordinates
         t1i = gravity_vec/np.linalg.norm(gravity_vec)
         
@@ -589,9 +592,11 @@ class sensor():
         t3i = t3i/np.linalg.norm(t3i)
         
         ti = np.vstack((t1i, t2i, t3i)).T
+
         R = np.dot(tb, ti.T)
         q = Rotation.from_matrix(R.T).as_quat()
         q = np.concatenate(([q[3]], q[0:3]))
+
         return q, R.T
         
     def Madgwick_AHRS_Only_Accel(self, gyro_meas, accel_meas, q_ant):
