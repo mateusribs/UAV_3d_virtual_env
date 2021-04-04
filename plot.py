@@ -77,9 +77,9 @@ az3.set_xlabel('Sample')
 
 az.set_title('Orientação Euler')
 
-az.set_ylim([-45, 45])
-az2.set_ylim([-45, 45])
-az3.set_ylim([-45, 45])
+# az.set_ylim([-45, 45])
+# az2.set_ylim([-45, 45])
+# az3.set_ylim([-45, 45])
 az.legend()
 az2.legend()
 az3.legend()

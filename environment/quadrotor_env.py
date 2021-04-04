@@ -446,7 +446,7 @@ class sensor():
     """
     
     def __init__(self, env,
-                 accel_std = 0.1, accel_bias_drift = 0.0005, 
+                 accel_std = 0.001, accel_bias_drift = 0.0005, 
                  gyro_std = 0.035, gyro_bias_drift = 0.00015, 
                  magnet_std = 15, magnet_bias_drift = 0.075, 
                  gps_std_p = 1.71, gps_std_v=0.5):

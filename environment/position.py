@@ -70,14 +70,16 @@ class quad_position():
             self.control_error_list = []
             
             self.estimation_error_list = []
-            if self.HOVER:
-                in_state = np.array([1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
-            # elif self.HOVER and self.episode_n==1:
-            #     in_state = np.array([0, 0, 0.3, 0, 0, 0, 0.707, 0.000, 0.000, 0.707, 0, 0, 0])
-            # elif self.HOVER and self.episode_n==3:
-            #     in_state = np.array([0, 0.3, 0, 0, 0, 0, 0.862, 0.300, 0.057, 0.406, 0, 0, 0])
-            # elif self.HOVER and self.episode_n==4:
-            #     in_state = np.array([0, 0.2, 0, 0, 0, 0, 0.853, 0.087, 0.150, 0.492, 0, 0, 0])
+            # if self.HOVER:
+            #     in_state = np.array([0, 0, 0, 0, 0, 0, 1, 0.000, 0.000, 0.000, 0, 0, 0])
+            if self.HOVER and self.episode_n==1:
+                in_state = np.array([0, 0, 0.3, 0, 0, 0, 1.000, 0.000, 0.000, 0.000, 0, 0, 0])
+            elif self.HOVER and self.episode_n==2:
+                in_state = np.array([0, 0, 0.3, 0, -2, 0, 0.000, 0.000, 0.000, 1.000, 0, 0, 0])
+            elif self.HOVER and self.episode_n==3:
+                in_state = np.array([0.2, 0.0, 0, 0, 0, 0, 0.862, 0.300, 0.057, 0.406, 0, 0, 0])
+            elif self.HOVER and self.episode_n==4:
+                in_state = np.array([0.2, 0.0, 0, 0, 0, 0, 0.853, 0.087, 0.150, 0.492, 0, 0, 0])
             else:
                 in_state = None
             states, action = self.env.reset(in_state)
