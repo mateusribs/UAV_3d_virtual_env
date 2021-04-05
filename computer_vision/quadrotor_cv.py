@@ -7,17 +7,19 @@ from collections import deque
 import math
 import statistics
 import time
+import os
 from matplotlib import pyplot as plt
 from computer_vision.detector_setup import detection_setup
 from computer_vision.img_2_cv import opencv_camera
 from environment.quadrotor_env import sensor
+from computer_vision.quat_utils import Quat2Rot, QuatProd, computeAngles, SkewMat, DerivQuat
 
 
 
 class computer_vision():
     def __init__(self, render, quad_model, cv_cam, cv_cam_2, camera_cal1, camera_cal2, quad_position):
         
-        # self.fast, self.criteria, self.nCornersCols, self.nCornersRows, self.objp, self.checker_scale, self.checker_sqr_size = detection_setup(render)
+
 
         self.mtx1 = camera_cal1.mtx
         self.dist1 = camera_cal1.dist
@@ -28,13 +30,13 @@ class computer_vision():
         self.kfquat_data = open("kfquat_data.txt", "w")
         self.kfeuler_data = open("kfeuler_data.txt", "w")
         self.pos_data = open('pos_data.txt', 'w')
-        self.angle_data.close()
 
         self.render = render  
         self.quad_position = quad_position
         self.render.quad_model.setPos(0, 0, 0)
         self.render.quad_model.setHpr(0, 0, 0)
         
+        #Camera Setup
         self.cv_cam = cv_cam
         self.cv_cam.cam.node().getLens().setFilmSize(36, 24)
         self.cv_cam.cam.node().getLens().setFocalLength(40)
@@ -44,85 +46,75 @@ class computer_vision():
         self.cv_cam.cam.reparentTo(self.render.render)
 
 
-        self.x_vals = []
-        self.y_vals = []
+        #Some local variables
         self.cx_list, self.cy_list, self.cz_list = [], [], []
         self.ax_list, self.ay_list, self.az_list = [], [], []
         self.index = 0
         self.index2 = 0
-
-        self.q_ant = np.array([1, 0, 0, 0])
         
 
-        #MEKF
+        #MEKF Constants
         self.var_a = 0.0005**2
-        self.var_c = 0.006**2
-        self.var_q = 0.01
-        self.var_b = 0.01
+        self.var_c = 0.005**2
+        self.var_v = .001
+        self.var_u = .001
         self.b_k = np.array([[0, 0, 0]], dtype='float32').T
-        self.P_k = np.eye(6)*10
+        self.P_k = np.eye(6)*0.01
         self.dx_k = np.array([[0, 0, 0, 0, 0, 0]], dtype='float32').T
-        self.dt = 0.00001
-        self.cam_vec = np.array([[0, 1, 0]]).T
+        self.dt = 0.01
 
-
+        #Run Tasks
         self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
         self.render.taskMgr.add(self.MEKF, 'MEKF')
-        # self.render.taskMgr.add(self.Madgwick_Update, 'Madgwick Filter')
 
-    def QuatProd(self, p, q):
-        
-        pv = np.array([p[0], p[1], p[2]], dtype='float32')
-        ps = p[3]
-
-        qv = np.array([q[0], q[1], q[2]], dtype='float32')
-        qs = q[3]
-
-        scalar = ps*qs - pv.T@qv
-        vector = ps*qv + qs*pv - np.cross(pv, qv, axis=0)
-
-        q_res = np.concatenate((vector, scalar), axis=0)
-
-        return q_res
-
-    def computeAngles(self, q0, q1, q2, q3):
-
-        roll = 180*math.atan2(q0*q1 + q2*q3, 0.5 - q1*q1 - q2*q2)/math.pi
-        pitch = 180*math.asin(-2.0 * (q1*q3 - q0*q2))/math.pi
-        yaw = 180*math.atan2(q1*q2 + q0*q3, 0.5 - q2*q2 - q3*q3)/math.pi
-
-        return roll, pitch, yaw
-
+    #Multiplicative Extended Kalman Filter
     def MEKF(self, task):
         
+        #Get initial states when change episode's simulation
         if self.index2 % 500 == 0:
             q_k0 = self.quad_position.sensor.triad()[0]
             self.q_k = np.array([[q_k0[1], q_k0[2], q_k0[3], q_k0[0]]], dtype='float32').T
-            print(self.q_k)
 
+            r0, p0, y0 = computeAngles(q_k0[0], q_k0[1], q_k0[2], q_k0[3])
+            p0 *= np.pi/180
+            y0 *= np.pi/180
+            cx0 = -np.sin(y0)*np.sin(p0)
+            cy0 = np.cos(y0)
+            cz0 = -np.sin(y0)*np.cos(p0)
+            self.cam_vec = np.array([[cx0, cy0, cz0]]).T
+            self.cam_vec*= 1/(np.linalg.norm(self.cam_vec))
+
+        #.txt archives
         self.kfquat_data = open("kfquat_data.txt", "a+")
         self.kfeuler_data = open("kfeuler_data.txt", "a+")
         
+        #Measurement Update, Quaternion Update and Bias Update
         q_K, b_K, P_K = self.Update_MEKF(self.dx_k, self.q_k, self.b_k, self.P_k)
+        #Predict Quaternion using Gyro Measuments
         q_k, P_k = self.Prediction_MEKF(q_K, P_K, b_K)
 
+        #Reset and propagation
         self.q_k = q_k
         self.b_k = b_K
         self.P_k = P_k
         self.dx_k = np.array([[0, 0, 0, 0, 0, 0]], dtype='float32').T
 
+        #Get Real Attitude from Quadrotor
         attitude_real = self.quad_position.env.mat_rot
         r_real = sci.spatial.transform.Rotation.from_matrix(attitude_real)
         q_real = r_real.as_quat()
-        roll_real, pitch_real, yaw_real = self.computeAngles(q_real[3], q_real[0], q_real[1], q_real[2])
+        roll_real, pitch_real, yaw_real = computeAngles(q_real[3], q_real[0], q_real[1], q_real[2])
 
-        roll_est, pitch_est, yaw_est = self.computeAngles(self.q_k[3], self.q_k[0], self.q_k[1], self.q_k[2])
+        #Get Euler Angles from Estimated MEKF Quaternion
+        roll_est, pitch_est, yaw_est = computeAngles(self.q_k[3], self.q_k[0], self.q_k[1], self.q_k[2])
 
+        #Write Real and Estimated Quaternion Attitude in .txt archive
         self.kfquat_data.write("{:.4f} , ".format(float(q_K[3])) + "{:.4f} , ".format(float(q_K[0])) + "{:.4f} , ".format(float(q_K[1]))+ "{:.4f} , ".format(float(q_K[2])) + "{:.4f} , ".format(float(q_real[3])) + "{:.4f} , ".format(float(q_real[0])) + "{:.4f} , ".format(float(q_real[1])) + "{:.4f} , ".format(float(q_real[2])) + "{:.2f}".format(self.index2) + "\n")
 
+        #Write Real and Estimated Euler Attitude in .txt archive
         self.kfeuler_data.write("{:.4f} , ".format(float(roll_est)) + "{:.4f} , ".format(float(pitch_est)) + "{:.4f} , ".format(float(yaw_est))+ "{:.4f} , ".format(float(roll_real)) + "{:.4f} , ".format(float(pitch_real)) + "{:.4f} , ".format(float(yaw_real)) + "{:.2f}".format(self.index2) + "\n")
 
-        # print("Outer:", self.index2)
+        print("Sample:", self.index2)
         self.index2 += 1
         self.kfquat_data.close()
         self.kfeuler_data.close()
@@ -132,40 +124,34 @@ class computer_vision():
     def Prediction_MEKF(self, q_K, P_K, b_K):
 
         gyro = self.quad_position.sensor.gyro().reshape(3,1)
-        #Quaternion Integration
+
+        # Discrete Quaternion Propagation
         omega_hat_k = gyro - b_K
         omega_hat_k_norm = np.linalg.norm(omega_hat_k)
 
-        # dot_q = self.DerivQuat(omega_hat_k, q_K)
+        # dot_q = DerivQuat(omega_hat_k, q_K)
         # q_kp1 = q_K + dot_q*self.dt
         # recipNorm = 1/(np.linalg.norm(q_kp1))
         # q_kp1 *= recipNorm
         # print('Euler:', q_kp1)
 
-        Psi_K = (omega_hat_k/omega_hat_k_norm)*np.sin(0.5*omega_hat_k_norm*self.dt)    
-        Omega11 = np.array([[np.cos(0.5*omega_hat_k_norm*self.dt)]],dtype='float32')
-        Omega12 = -Psi_K.T
-        Omega21 = Psi_K
-        Omega22 = np.cos(0.5*omega_hat_k_norm*self.dt)*np.eye(3) - self.SkewMat(Psi_K)
+        Psi_K = (omega_hat_k/omega_hat_k_norm)*np.sin(0.5*omega_hat_k_norm*self.dt)  
+          
+        Omega22 = np.array([[np.cos(0.5*omega_hat_k_norm*self.dt)]], dtype='float32')
+        Omega21 = -Psi_K.T
+        Omega12 = Psi_K
+        Omega11 = np.cos(0.5*omega_hat_k_norm*self.dt)*np.eye(3) - SkewMat(Psi_K)
         Omega_up = np.concatenate((Omega11, Omega12), axis=1)
         Omega_down = np.concatenate((Omega21, Omega22), axis=1)
         Omega = np.concatenate((Omega_up, Omega_down), axis=0)
         q_kp1 =  Omega@q_K
         q_kp1 *= 1/(np.linalg.norm(q_kp1))
-        
-        
-        #Covariance Propagation
-        # Phi = np.array([[0, omega_hat_k[2], -omega_hat_k[1], -1, 0, 0],
-        #                 [-omega_hat_k[2], 0, omega_hat_k[0], 0, -1, 0],
-        #                 [omega_hat_k[1], -omega_hat_k[0], 0, 0, 0, -1],
-        #                 [0, 0, 0, 1, 0, 0],
-        #                 [0, 0, 0, 0, 1, 0],
-        #                 [0, 0, 0, 0, 0, 1]], dtype='float32')
 
+        #Discrete error-state transition matrix
 
-        Phi11 = np.eye(3) - (np.sin(omega_hat_k_norm*self.dt)/omega_hat_k_norm)*self.SkewMat(omega_hat_k) + self.SkewMat(omega_hat_k)@self.SkewMat(omega_hat_k)*((1 - np.cos(omega_hat_k_norm*self.dt)/omega_hat_k_norm**2))
+        Phi11 = np.eye(3) - (np.sin(omega_hat_k_norm*self.dt)/omega_hat_k_norm)*SkewMat(omega_hat_k) + SkewMat(omega_hat_k)@SkewMat(omega_hat_k)*((1 - np.cos(omega_hat_k_norm*self.dt)/(omega_hat_k_norm**2)))
 
-        Phi12 = ((1 - np.cos(omega_hat_k_norm*self.dt)/omega_hat_k_norm**2))*self.SkewMat(omega_hat_k) - np.eye(3)*self.dt - ((omega_hat_k_norm*self.dt - np.sin(omega_hat_k_norm*self.dt))/omega_hat_k_norm**3)*self.SkewMat(omega_hat_k)@self.SkewMat(omega_hat_k)
+        Phi12 = ((1 - np.cos(omega_hat_k_norm*self.dt)/(omega_hat_k_norm**2)))*SkewMat(omega_hat_k) - np.eye(3)*self.dt - ((omega_hat_k_norm*self.dt - np.sin(omega_hat_k_norm*self.dt))/(omega_hat_k_norm**3))*SkewMat(omega_hat_k)@SkewMat(omega_hat_k)
 
         Phi21 = np.zeros((3,3))
         Phi22 = np.eye(3)
@@ -174,6 +160,8 @@ class computer_vision():
         Phi_down = np.concatenate((Phi21, Phi22), axis=1)
         Phi = np.concatenate((Phi_up, Phi_down), axis=0)
         
+        #Discrete input matrix
+
         Gamma = np.array([[-1, 0, 0, 0, 0, 0],
                           [0, -1, 0, 0, 0, 0],
                           [0, 0, -1, 0, 0, 0],
@@ -181,113 +169,90 @@ class computer_vision():
                           [0, 0, 0, 0, 1, 0],
                           [0, 0, 0, 0, 0, 1]])
         
-        Q = np.array([[self.var_q*self.dt + (1/3)*self.var_b*self.dt**3, 0, 0, 0.5*self.var_b*self.dt**2, 0, 0],
-                      [0, self.var_q*self.dt + (1/3)*self.var_b*self.dt**3, 0, 0, 0.5*self.var_b*self.dt**2, 0],
-                      [0, 0, self.var_q*self.dt + (1/3)*self.var_b*self.dt**3, 0, 0, 0.5*self.var_b*self.dt**2],
-                      [0.5*self.var_b*self.dt**2, 0, 0, self.var_b*self.dt, 0, 0],
-                      [0, 0.5*self.var_b*self.dt**2, 0, 0, self.var_b*self.dt, 0],
-                      [0, 0, 0.5*self.var_b*self.dt**2, 0, 0, self.var_b*self.dt]], dtype='float32')
+        #Discrete noise process covariance matrix
 
-        # Q = np.array([[self.var_q, 0, 0, 0, 0, 0],
-        #               [0, self.var_q, 0, 0, 0, 0],
-        #               [0, 0, self.var_q, 0, 0, 0],
-        #               [0, 0, 0, self.var_b, 0, 0],
-        #               [0, 0, 0, 0, self.var_b, 0],
-        #               [0, 0, 0, 0, 0, self.var_b]], dtype='float32')
+        Q11 = (self.var_v*self.dt + (1/3)*self.var_u*self.dt**3)*np.eye(3)
+        Q12 = 0.5*self.var_u*self.dt**2*np.eye(3)
+        Q21 = Q12
+        Q22 = self.var_u*self.dt*np.eye(3)
+        Q_up = np.concatenate((Q11, Q12), axis=1)
+        Q_down = np.concatenate((Q21, Q22), axis=1)
+        Q = np.concatenate((Q_up, Q_down), axis=0)
 
+        #Discrete Covariance Propagation
         P_kp1 = Phi@P_K@Phi.T + Gamma@Q@Gamma.T
 
         return q_kp1, P_kp1
 
     def Update_MEKF(self, dx_k, q_k, b_k, P_k):
         
-        #Propagate
+        #Estimated Rotation Matrix - Global to Local - Inertial to Body
+        A_q = Quat2Rot(q_k)
 
-        A_q = self.Quat2Rot(q_k)
+        #Current Sensor Measurement
 
-        #Murriel's Version (Read each sensor at a time)
-        for i in range(0,2):
-            
-            #Accelerometer Measurement
-            if i==0:
-                #Measurement Update
+        #Accelerometer 
+        b_a = self.quad_position.sensor.accel_grav().T
+        #Camera
+        b_c = self.cam_vec
+        #Measurement Sensor Vector
+        b = np.concatenate((b_a, b_c), axis=0)
 
-                #Current Sensor Measurement
-                b_a = self.quad_position.sensor.accel_grav().T
+        #Reference Accelerometer Direction (Gravitational Acceleration)
+        r_a = np.array([[0, 0, -1]]).T
+        #Reference Camera Direction
+        r_c = np.array([[0, 1, 0]]).T
+        #Camera Estimated Output
+        b_hat_c = A_q @ r_c
+        #Accelerometer Estimated Output
+        b_hat_a = A_q @ r_a
+        #Estimated Measurement Vector
+        b_hat = np.concatenate((b_hat_a, b_hat_c), axis=0)
 
-                #Reference Accelerometer Direction (Gravitational Acceleration)
-                r_a = np.array([[0, 0, -1]]).T
 
-                #Estimated Output
-                b_hat_a = A_q @ r_a
-     
-                
-                #Sensitivy Matrix       
-                H_k = np.array([[0, -b_hat_a[2], b_hat_a[1], 0, 0, 0],
-                                [b_hat_a[2], 0, -b_hat_a[0], 0, 0, 0],
-                                [-b_hat_a[1], b_hat_a[0], 0, 0, 0, 0]], dtype='float32')
-                
-                #Measurement Covariance Matrix
-                R = np.array([[self.var_a, 0, 0],
-                              [0, self.var_a, 0],
-                              [0, 0, self.var_a]], dtype='float32')
-                
-                #Kalman Gain
-                K_k = P_k@H_k.T @ inv(H_k@P_k@H_k.T + R)
-
-                #Update Covariance
-                L = np.eye(6) - K_k@H_k
-                P_K = L@P_k@L.T + K_k@R@K_k.T
-
-                #Inovation (Residual)
-                e_k = b_a - b_hat_a
-                #Update State
-                dx_K = dx_k + K_k@(e_k - H_k@dx_k)
-                
-                #Propagate values to Camera Measurement
-                dx_k = dx_K
-                P_k = P_K
-
-            #Camera Measurement
-            if i==1:
-                
-                #Measurement Update
-
-                #Current Measurement
-                b_c = self.cam_vec
-
-                #Reference direction
-                r_c = np.array([[0, math.sqrt(float(self.cam_vec[0])**2 + float(self.cam_vec[1])**2), float(self.cam_vec[2])]]).T
-                # r_c = np.array([[0, 1, 0]]).T
-
-                b_hat_c = A_q@r_c
-
-                #Sensitivy Matrix       
-                H_k = np.array([[0, -b_hat_c[2], b_hat_c[1], 0, 0, 0],
-                                [b_hat_c[2], 0, -b_hat_c[0], 0, 0, 0],
-                                [-b_hat_c[1], b_hat_c[0], 0, 0, 0, 0]], dtype='float32')
-                
-                #Measurement Covariance Matrix
-                R = np.array([[self.var_c, 0, 0],
-                              [0, self.var_c, 0],
-                              [0, 0, self.var_c]], dtype='float32')
+        #Sensitivy Matrix Accelerometer
+        H_ka_left = SkewMat(b_hat_a)
+        H_ka_right = np.zeros((3,3))
+        H_ka = np.concatenate((H_ka_left, H_ka_right), axis=1)
         
-                #Kalman Gain
-                K_k = P_k@H_k.T @ inv(H_k@P_k@H_k.T + R)
+        #Sensitivy Matrix Camera   
+        H_kc_left = SkewMat(b_hat_c)
+        H_kc_right = np.zeros((3,3))
+        H_kc = np.concatenate((H_kc_left, H_kc_right), axis=1)
 
-                #Update Covariance
-                L = np.eye(6) - K_k@H_k
-                P_K = L@P_k@L.T + K_k@R@K_k.T
+        #General Sensitivy Matrix
+        H_k = np.concatenate((H_ka, H_kc), axis=0)
 
-                #Inovation (Residual)
-                e_k = b_c - b_hat_c
+        #Accelerometer Measurement Covariance Matrix
+        Ra = np.array([[self.var_a, 0, 0],
+                        [0, self.var_a, 0],
+                        [0, 0, self.var_a]], dtype='float32')
+        
+        
+        #Camera Measurement Covariance Matrix
+        Rc = np.array([[self.var_c, 0, 0],
+                        [0, self.var_c, 0],
+                        [0, 0, self.var_c]], dtype='float32')
+        
+        #General Measurement Covariance Matrix
+        R_top = np.concatenate((Ra, np.zeros((3,3))), axis=1)
+        R_down = np.concatenate((np.zeros((3,3)), Rc), axis=1)
+        R = np.concatenate((R_top, R_down), axis=0) 
 
-                #Update State
-                dx_K = dx_k + K_k@(e_k - H_k@dx_k)
+        #Kalman Gain
+        K_k = P_k@H_k.T @ inv(H_k@P_k@H_k.T + R)
 
+        #Update Covariance
+        P_K = (np.eye(6) - K_k@H_k)@P_k
+
+        #Inovation (Residual)
+        e_k = b - b_hat
+        #Update State
+        dx_K = K_k@(e_k - H_k@dx_k)
+        
         #Update Quaternion
         dq_k = dx_K[0:3,:]
-        q_K = q_k + self.DerivQuat(dq_k, q_k)
+        q_K = q_k + DerivQuat(dq_k, q_k)
         q_K = q_K/(np.linalg.norm(q_K))    
 
         #Update Biases
@@ -298,208 +263,10 @@ class computer_vision():
 
         return q_K, b_K, P_K
 
-    def Madgwick_Update(self, task):
-        
-        self.kf_data = open("kf_data.txt", "a+")
-
-        g_meas = self.quad_position.sensor.gyro().reshape(3,1)
-        a_meas = self.quad_position.sensor.accel_grav().reshape(3,1)
-        m_meas = self.quad_position.sensor.mag_gauss().reshape(3,1)
-
-        q = self.Madgwick(g_meas, a_meas, m_meas, self.dt, self.q_ant)
-
-        self.q_ant = q
-
-        attitude_real = self.quad_position.env.mat_rot
-        r_real = sci.spatial.transform.Rotation.from_matrix(attitude_real)
-        q_real = r_real.as_quat()
-        roll_real, pitch_real, yaw_real = self.computeAngles(q_real[3], q_real[0], q_real[1], q_real[2])
-
-        roll_est, pitch_est, yaw_est = self.computeAngles(q[0], q[1], q[2], q[3])
-
-        # self.kf_data.write("{:.4f} , ".format(float(q_K[0])) + "{:.4f} , ".format(float(q_K[1])) + "{:.4f} , ".format(float(q_K[2]))+ "{:.4f} , ".format(float(q_K[3])) + "{:.4f} , ".format(float(q_real[3])) + "{:.4f} , ".format(float(q_real[0])) + "{:.4f} , ".format(float(q_real[1])) + "{:.4f} , ".format(float(q_real[2])) + "{:.2f}".format(self.index2) + "\n")
-
-        self.kf_data.write("{:.4f} , ".format(float(roll_est)) + "{:.4f} , ".format(float(pitch_est)) + "{:.4f} , ".format(float(yaw_est))+ "{:.4f} , ".format(float(roll_real)) + "{:.4f} , ".format(float(pitch_real)) + "{:.4f} , ".format(float(yaw_real)) + "{:.2f}".format(self.index2) + "\n")
-
-        self.quad_position.sensor.triad()
-
-        print(self.index2)
-        print("Erro X: {0}, Erro Y: {1}, Erro Z: {2}".format(roll_real-roll_est, pitch_real-pitch_est, yaw_real-yaw_est))
-        self.index2 += 1
-        self.kf_data.close()
-
-        return task.cont
-
-    def Madgwick(self, g, a, m, dt, q_ant):
-
-        q0 = q_ant[0]
-        q1 = q_ant[1]
-        q2 = q_ant[2]
-        q3 = q_ant[3]
-        beta = 0.1
-
-        #Gyroscope
-        gx = g[0]
-        gy = g[1]
-        gz = g[2]
-        #Accelerometer
-        ax = a[0]
-        ay = a[1]
-        az = a[2]
-        #Magnetometer
-        mx = m[0]
-        my = m[1]
-        mz = m[2]
-
-        # Rate of change of quaternion from gyroscope
-        qDot1 = 0.5 * (-q1 * gx - q2 * gy - q3 * gz)
-        qDot2 = 0.5 * (q0 * gx + q2 * gz - q3 * gy)
-        qDot3 = 0.5 * (q0 * gy - q1 * gz + q3 * gx)
-        qDot4 = 0.5 * (q0 * gz + q1 * gy - q2 * gx)
-
-        # Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
-        if ax !=0 and ay != 0 and az != 0:
-
-            # # Normalise accelerometer measurement
-            # recipNorm = 1/(math.sqrt(ax**2 + ay**2 + az**2))
-            # ax *= recipNorm
-            # ay *= recipNorm
-            # az *= recipNorm
-
-            # recipNorm = 1/(math.sqrt(mx**2 + my**2 + mz**2))
-            # mx *= recipNorm
-            # my *= recipNorm
-            # mz *= recipNorm
-
-            
-
-            # Auxiliary variables to avoid repeated arithmetic
-            _2q0 = 2.0 * q0
-            _2q1 = 2.0 * q1
-            _2q2 = 2.0 * q2
-            _2q3 = 2.0 * q3
-            _4q0 = 4.0 * q0
-            _4q1 = 4.0 * q1
-            _4q2 = 4.0 * q2
-            _4q3 = 4.0 * q3
-            _8q1 = 8.0 * q1
-            _8q2 = 8.0 * q2
-            q0q0 = q0 * q0
-            q1q1 = q1 * q1
-            q2q2 = q2 * q2
-            q3q3 = q3 * q3
-
-            # Reference direction of Earth's magnetic field
-            hx = mx*(2*q0q0 - 1 + 2*q1q1) + my*(2*(q1*q2 + q0*q3)) + mz*(2*(q1*q3 - q0*q2))
-            hy = mx*(2*(q1*q2 - q0*q3)) + my*(2*q0q0 - 1 + 2*q2q2) + mz*(2*(q2*q3 + q0*q1))
-            hz = mx*(2*(q1*q3 + q0*q2)) + my*(2*(q2*q3 - q0*q1)) + mz*(2*q0q0 - 1 + 2*q3q3)
-            bx = math.sqrt(hx**2 + hy**2)
-            # bx = 1
-            # bz = 0
-            _2bx = 2*bx
-            _2bz = 2*hz
-            _4bx = 2.0 * _2bx
-            _4bz = 2.0 * _2bz
-
-            #Accelerometer 
-            f_g = np.array([[-2*(q1*q3 - q0*q2) - ax],
-                            [-2*(q0*q1 + q2*q3) - ay],
-                            [-2*(0.5 - q1q1 - q2q2) - az]], dtype='float32').reshape(3,1)
-            # print(f_g)
-            J_g = np.array([[_2q2, -_2q3, _2q0, -_2q1],
-                            [-_2q1, -_2q0, -_2q3, -_2q2],
-                            [0, _4q1, _4q2, 0]], dtype='float32').reshape(3,4)
-
-            #Magnetometer
-            f_m = np.array([[_2bx*(0.5 - q2q2 - q3q3) + _2bz*(q1*q3 - q0*q2) - mx],
-                            [_2bx*(q1*q2 - q0*q3) + _2bz*(q0*q1 + q2*q3) - my],
-                            [_2bx*(q0*q2 + q1*q3) + _2bz*(0.5 - q1q1 - q2q2) - mz]], dtype='float32').reshape(3,1)
-            print(f_m)
-            J_m = np.array([[-_2bz*q2, _2bz*q3, -_4bx*q2 - _2bz*q0, -_4bx*q3 + _2bz*q1],
-                            [-_2bx*q3 + _2bz*q1, _2bx*q2 + _2bz*q0, _2bx*q1 + _2bz*q3, -_2bx*q0 + _2bz*q2],
-                            [_2bx*q2, _2bx*q3 - _4bz*q1, _2bx*q0 - _4bz*q2, _2bx*q1]], dtype='float32').reshape(3,4)
-
-            # Gradient decent algorithm corrective step
-            J_mg = np.concatenate((J_g, J_m), axis=0)
-            f_mg = np.concatenate((f_g, f_m), axis=0).reshape(6,1)
-            s = J_mg.T@f_mg
     
-            s0 = s[0]
-            s1 = s[1]
-            s2 = s[2]
-            s3 = s[3]
-            recipNorm = 1/ (math.sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3)) ## normalise step magnitude
-            s0 *= recipNorm
-            s1 *= recipNorm
-            s2 *= recipNorm
-            s3 *= recipNorm
-
-            # Apply feedback step
-            qDot1 -= beta * s0
-            qDot2 -= beta * s1
-            qDot3 -= beta * s2
-            qDot4 -= beta * s3
-
-
-        # Integrate rate of change of quaternion to yield quaternion
-        q0 += qDot1 * dt
-        q1 += qDot2 * dt
-        q2 += qDot3 * dt
-        q3 += qDot4 * dt
-
-        # Normalise quaternion
-        recipNorm = 1 / (math.sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3))
-        q0 *= recipNorm
-        q1 *= recipNorm
-        q2 *= recipNorm
-        q3 *= recipNorm
-
-        q = np.array([q0, q1, q2, q3])
-
-        # print('q0: {0}, q1: {1}, q2: {2}, q3: {3}'.format(q[0], q[1], q[2], q[3]))
-
-        return q
-
-    def Quat2Rot(self,q):
-
-        qv = np.array([q[0], q[1], q[2]], dtype='float32')
-        qs = q[3]
-        
-        qvx = np.array([[0, -qv[2], qv[1]],
-                        [qv[2], 0, -qv[0]], 
-                        [-qv[1], qv[0], 0]], dtype='float32') 
-
-        A_q = (qs**2 - np.linalg.norm(qv)**2)*np.eye(3) + 2*qv@qv.T - 2*qs*qvx
-
-        return A_q
-
-    def SkewMat(self, q):
-
-        qx = q[0]
-        qy = q[1]
-        qz = q[2]
-
-        omega = np.array([[0, -qz, qy],
-                            [qz, 0, -qx],
-                            [-qy, qx, 0]], dtype='float32')
-        return omega
-
-
-    def DerivQuat(self, w, q):
-
-        wx = w[0]
-        wy = w[1]
-        wz = w[2]   
-        omega = np.array([[0, wz, -wy, wx],
-                          [-wz, 0, wx, wy],
-                          [wy, -wx, 0, wz],
-                          [-wx, -wy, -wz, 0]], dtype='float32')
-        dq = 1/2*np.dot(omega,q)
-
-        return dq
-
+    #Camera Processing
     def img_show(self, task):
-
+        
         rvecs = None
         tvecs = None
 
@@ -517,7 +284,6 @@ class computer_vision():
             ret, image = self.cv_cam.get_image()
             #ret, image2 = self.cv_cam_2.get_image()
 
-            ##Chessboard 
             if ret:
         
         
@@ -539,6 +305,7 @@ class computer_vision():
                 parameters.cornerRefinementMinAccuracy = 0.1
                 # parameters = self.detector_aruco_parameters(10, 23, 10, 7)
 
+                #.txt archives
                 self.angle_data = open("angle_data.txt", "a+")
                 self.pos_data = open('pos_data.txt', 'a+')
 
@@ -555,17 +322,13 @@ class computer_vision():
                         order = np.argsort(-markerIDs.reshape(1,2))
                         markerIDs = markerIDs[order].reshape(2,1)
                         markerCorners = np.asarray(markerCorners, dtype='float32')[order]
-                    # print("Marker Detected")
 
                     for i in range(0, len(markerIDs)):
-                        # print("---------")
-                        # print(i)
-
+                        
+                        #Check if it's reference marker
                         if markerIDs[i]==10:
-
-                            # print("Marker Corners Reference:")
-                            # print(markerCorners[0][i])
-
+                            
+                            #Compute Pose Estimation of the Reference Marker
                             rvec_ref, tvec_ref, _ = cv.aruco.estimatePoseSingleMarkers(markerCorners[0][i], 0.5, self.mtx1, self.dist1, rvecs, tvecs)
                             rvec_ref = np.reshape(rvec_ref, (3,1))
                             tvec_ref = np.reshape(tvec_ref, (3,1))
@@ -579,22 +342,20 @@ class computer_vision():
                             #Homegeneous Transformation Camera Frame to Fixed Frame
                             T_cr = np.linalg.inv(T_rc)
 
+                            #Get Reference's Marker attitude w.r.t camera
                             r_ref = sci.spatial.transform.Rotation.from_matrix(T_cr[0:3, 0:3])
                             q_ref = r_ref.as_quat()
-                            roll_ref, pitch_ref, yaw_ref = self.computeAngles(q_ref[3], q_ref[0], q_ref[1], q_ref[2])
+                            roll_ref, pitch_ref, yaw_ref = computeAngles(q_ref[3], q_ref[0], q_ref[1], q_ref[2])
                             euler_ref = np.array([roll_ref, pitch_ref, yaw_ref])
-                            # print("Euler Reference:")
-                            # print(euler_ref)
 
+                            #Draw axis in marker
                             cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvec_ref, tvec_ref, 0.5)
                             cv.aruco.drawDetectedMarkers(image, markerCorners[0])
         
-                        
+                        #Check if it's moving marker/object marker
                         if markerIDs[i]==4:
 
-                            # print("Marker Corners Movement:")
-                            # print(markerCorners[0][i])
-
+                            #Get Pose Estimation of the Moving Marker
                             rvec_obj, tvec_obj, _ = cv.aruco.estimatePoseSingleMarkers(markerCorners[0][i], 0.185, self.mtx1, self.dist1, rvecs, tvecs)
                             rvec_obj = np.reshape(rvec_obj, (3,1))
                             tvec_obj = np.reshape(tvec_obj, (3,1))
@@ -609,10 +370,8 @@ class computer_vision():
 
                             r_mov = sci.spatial.transform.Rotation.from_matrix(T_dc[0:3, 0:3])
                             q_mov = r_mov.as_quat()
-                            roll_mov, pitch_mov, yaw_mov = self.computeAngles(q_mov[3], q_mov[0], q_mov[1], q_mov[2])
+                            roll_mov, pitch_mov, yaw_mov = computeAngles(q_mov[3], q_mov[0], q_mov[1], q_mov[2])
                             euler_mov = np.array([roll_mov, pitch_mov, yaw_mov])
-                            # print("Euler Movement")
-                            # print(euler_mov)
 
                             if T_cr is not None:
                                 #Homogeneous Transformation Object Frame to Fixed Frame
@@ -624,17 +383,14 @@ class computer_vision():
                             r_obj = sci.spatial.transform.Rotation.from_matrix(T_dr[0:3, 0:3])
                             q_obj = r_obj.as_quat()
                             # print(q_obj)
-                            roll_obj, pitch_obj, yaw_obj = self.computeAngles(q_obj[3], q_obj[0], q_obj[1], q_obj[2])
+                            roll_obj, pitch_obj, yaw_obj = computeAngles(q_obj[3], q_obj[0], q_obj[1], q_obj[2])
                             euler_obj = np.array([roll_obj, pitch_obj, yaw_obj])
                             
                             #Real Quadcopter Attitude
                             attitude_real = self.quad_position.env.mat_rot
                             r_real = sci.spatial.transform.Rotation.from_matrix(attitude_real)
                             q_real = r_real.as_quat()
-                            # q_real = self.quad_position.env.state[6:10]
-                            # print(q_real)
-                            roll_real, pitch_real, yaw_real = self.computeAngles(q_real[3], q_real[0], q_real[1], q_real[2])
-                            # print("Attitude Real:{0}, {1}, {2}".format(roll_real, pitch_real, yaw_real))
+                            roll_real, pitch_real, yaw_real = computeAngles(q_real[3], q_real[0], q_real[1], q_real[2])
 
 
                             #Marker's Position
@@ -642,27 +398,23 @@ class computer_vision():
                             xf_obj = float(T_dr[0,3])*0.978 - 0.0563
                             yf_obj = float(T_dr[1,3])*0.932 + 0.725
 
-                            # xz = -9.37*10**-3*zf_obj + 0.018
-                            # yz = 0.0102*zf_obj + -0.0208
-
-                            # xf_obj -= xz
-                            # yf_obj -= yz
-
-                            #Measurement Vector
+                            #Measurement Direction Vector
                             yaw_obj *= np.pi/180
                             pitch_obj *= np.pi/180
 
-                            cx = np.sin(yaw_obj)*np.sin(pitch_obj)
+                            cx = -np.sin(yaw_obj)*np.sin(pitch_obj)
                             cy = np.cos(yaw_obj)
                             cz = -np.sin(yaw_obj)*np.cos(pitch_obj)
                             self.cam_vec = np.array([[cx, cy, cz]]).T
-                            # self.cam_vec *= 1/(np.linalg.norm(self.cam_vec))
+                            self.cam_vec *= 1/(np.linalg.norm(self.cam_vec))
                             # print(self.cam_vec)
 
-                            accel = self.quad_position.sensor.accel_grav().T
-                            accel_x = accel[0]
-                            accel_y = accel[1]
-                            accel_z = accel[2]
+                            #Get the standard deviation from camera and accelerometer
+
+                            # accel = self.quad_position.sensor.accel_grav().T
+                            # accel_x = accel[0]
+                            # accel_y = accel[1]
+                            # accel_z = accel[2]
 
                             # self.cx_list.append(cx)
                             # self.cy_list.append(cy)
@@ -701,8 +453,6 @@ class computer_vision():
                             cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvec_obj, tvec_obj, 0.185)
                             cv.aruco.drawDetectedMarkers(image, markerCorners[0])
 
-
-                            modulo = np.sqrt(q_obj[0]**2 + q_obj[1]**2 + q_obj[2]**2 + q_obj[3]**2)
                             #Print position values in frame
                             cv.putText(image, "X:"+str(np.round(float(xf_obj), 4)), (10,500), font, 1, (255,255,0), 2)
                             cv.putText(image, "Y:"+str(np.round(float(yf_obj), 4)), (100,500), font, 1, (255,255,0), 2)
@@ -718,14 +468,11 @@ class computer_vision():
                             cv.putText(image, "Theta:"+str(np.round(float(pitch_real), 2)), (10,160), font, 1, (0,255,0), 2)
                             cv.putText(image, "Psi:"+str(np.round(float(yaw_real), 2)), (10,180), font, 1, (255,0,0), 2)
                             
-                            cv.putText(image, "q0:"+str(np.round(float(q_obj[3]), 3)), (10,400), font, 1, (255,255,255), 2)
-                            cv.putText(image, "q1:"+str(np.round(float(q_obj[0]), 3)), (10,420), font, 1, (255,255,255), 2)
-                            cv.putText(image, "q2:"+str(np.round(float(q_obj[1]), 3)), (10,440), font, 1, (255,255,255), 2)
-                            cv.putText(image, "q3:"+str(np.round(float(q_obj[2]), 3)), (10,460), font, 1, (255,255,255), 2)
-                            cv.putText(image, "Modulo:" + str(np.round(float(modulo), 3)), (10, 480), font, 1, (255, 0, 0),2)
 
+                            #Write Real and Estimated Attitude in .txt archive
                             self.angle_data.write("{:.2f} , ".format(float(euler_obj[0])) + "{:.2f} , ".format(float(euler_obj[1])) + "{:.2f} , ".format(float(euler_obj[2]))
                                 + "{:.2f} , ".format(float(roll_real)) + "{:.2f} , ".format(float(pitch_real)) + "{:.2f} , ".format(float(yaw_real)) + "{:.2f}".format(self.index) + "\n")
+                            #Write Real and Estimated Position in .txt archive
                             self.pos_data.write("{:.4f} , ".format(float(xf_obj)) + "{:.4f} , ".format(float(yf_obj)) + "{:.4f} , ".format(float(zf_obj))
                                 + "{:.4f} , ".format(float(x_real)) + "{:.4f} , ".format(float(y_real)) + "{:.4f} , ".format(float(z_real)) + "{:.2f}".format(self.index) + "\n")
 

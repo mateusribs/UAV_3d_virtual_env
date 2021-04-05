@@ -2,9 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-
-
-
 plt.style.use("fivethirtyeight")
 fig, (ax, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10,10), sharex=True)
 q0e_list, q1e_list, q2e_list, q3e_list, q0r_list, q1r_list, q2r_list, q3r_list, time = [], [], [], [], [], [], [], [], []
