@@ -402,12 +402,12 @@ class computer_vision():
                             yaw_obj *= np.pi/180
                             pitch_obj *= np.pi/180
 
-                            cx = -np.sin(yaw_obj)*np.sin(pitch_obj)
-                            cy = np.cos(yaw_obj)
-                            cz = -np.sin(yaw_obj)*np.cos(pitch_obj)
+                            cx = -T_dc[0,1]
+                            cy = -T_dc[1,1]
+                            cz = T_dc[2,1]
                             self.cam_vec = np.array([[cx, cy, cz]]).T
                             self.cam_vec *= 1/(np.linalg.norm(self.cam_vec))
-                            # print(self.cam_vec)
+                            print(self.cam_vec)
 
                             #Get the standard deviation from camera and accelerometer
 
