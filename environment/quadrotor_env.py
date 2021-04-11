@@ -241,6 +241,8 @@ class quad():
         accel_y = self.f_inertial[1, 0]/M        
         accel_z = self.f_inertial[2, 0]/M-G
         self.accel = np.array([[accel_x, accel_y, accel_z]]).T
+
+        self.accelerometer_read = self.mat_rot.T @ (self.accel.flatten() + np.array([0, 0, -G]))
         
         #BODY MOMENTUM
         W = np.array([[w_xx],
@@ -446,7 +448,7 @@ class sensor():
     """
     
     def __init__(self, env,
-                 accel_std = 0.001, accel_bias_drift = 0.0005, 
+                 accel_std = 0.1, accel_bias_drift = 0.0005, 
                  gyro_std = 0.035, gyro_bias_drift = 0.00015, 
                  magnet_std = 15, magnet_bias_drift = 0.075, 
                  gps_std_p = 1.71, gps_std_v=0.5):
@@ -466,14 +468,19 @@ class sensor():
         self.m_b_d = (np.random.random()-0.5)*2*self.b_d[2]*self.error        
         self.gps_std_p = self.std[3]*self.error
         self.gps_std_v = self.std[4]*self.error
+        self.R = np.eye(3)
     
         
     def accel(self):
-    
-        self.a_b_accel = self.a_b_accel + self.a_b_d*self.quad.t_step        
+        
+        self.a_b_accel = self.a_b_accel + self.a_b_d*self.quad.t_step
+
         read_error = np.random.normal(self.a_b_accel, self.a_std, 3)
-        read_accel = np.dot(self.quad.mat_rot.T, self.quad.accel.flatten())
-        return read_error+read_accel
+
+        read_accel_body = self.quad.accelerometer_read.flatten()
+
+        return read_accel_body+read_error
+
     
     def accel_grav(self, norm=True):
         
@@ -529,7 +536,7 @@ class sensor():
         
         read_error = np.random.normal(self.g_b, self.g_std, 3)
         read_gyro = self.quad.state[-3:].flatten()
-        return read_error+read_gyro        
+        return np.array([read_error+read_gyro], dtype='float32').T       
             
     def reset(self):
         self.a_b_grav = 0
@@ -558,20 +565,20 @@ class sensor():
         #https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml#igrfwmm
         
         
-        self.a_b_grav = self.a_b_grav + self.a_b_d*self.quad.t_step
-        self.m_b = self.m_b + self.m_b_d*self.quad.t_step
-        
         #Gravity vector as read from body sensor
-        gravity_body = np.dot(self.quad.mat_rot.T, gravity_vec) + np.random.normal(np.random.random(3)*self.a_b_grav, self.a_std, 3)
+        induced_acceleration = self.quad.f_in.flatten()/M - (self.R @ np.array([[0, 0, -G]]).T).flatten()
+        gravity_body = self.accel() - induced_acceleration
         #Magnetic Field vector as read from body sensor
-        magnet_body = np.dot(self.quad.mat_rot.T, magnet_vec) + np.random.normal(np.random.random(3)*self.m_b, self.m_std, 3)      
+        magnet_body = self.quad.mat_rot.T @ (np.random.normal(magnet_vec, self.m_std))     
       
 
         #Accel vector is more accurate
         #Body Coordinates
+        gravity_body = gravity_body / np.linalg.norm(gravity_body)
+
+        magnet_body = magnet_body / np.linalg.norm(magnet_body)
+
         t1b = gravity_body/np.linalg.norm(gravity_body)
-        
-        
 
         t2b = np.cross(gravity_body, magnet_body)
         t2b = t2b/np.linalg.norm(t2b)
@@ -583,6 +590,9 @@ class sensor():
         
 
         #Inertial Coordinates
+        gravity_vec = gravity_vec/np.linalg.norm(gravity_vec)
+        magnet_vec = magnet_vec / np.linalg.norm(magnet_vec)
+
         t1i = gravity_vec/np.linalg.norm(gravity_vec)
         
         t2i = np.cross(gravity_vec, magnet_vec)        
@@ -593,11 +603,11 @@ class sensor():
         
         ti = np.vstack((t1i, t2i, t3i)).T
 
-        R = np.dot(tb, ti.T)
-        q = Rotation.from_matrix(R.T).as_quat()
+        self.R = tb @ ti.T
+        q = Rotation.from_matrix(self.R.T).as_quat()
         q = np.concatenate(([q[3]], q[0:3]))
 
-        return q, R.T
+        return q, self.R
         
     def Madgwick_AHRS_Only_Accel(self, gyro_meas, accel_meas, q_ant):
 

@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
+from sklearn.metrics import mean_squared_error
+plt.rcParams.update({'font.size': 11})
 
-
-plt.style.use("fivethirtyeight")
 fig, (ax, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10,10), sharex=True)
 q0e_list, q1e_list, q2e_list, q3e_list, q0r_list, q1r_list, q2r_list, q3r_list, time = [], [], [], [], [], [], [], [], []
 
@@ -23,29 +24,33 @@ for line in lines:
         time.append(float(times))
 
 
-ax.plot(time, q0r_list, 'r--', alpha=0.6, label = r'$w_{ref} (t)$', linewidth = 1.5)
-ax.plot(time, q0e_list, 'r', label=r'$w_{est}(t)$', linewidth=1)
-ax2.plot(time, q1r_list, 'g--', alpha=0.6, label = r'$p_{ref} (t)$', linewidth=1.5)
-ax2.plot(time, q1e_list, 'g', label=r'$p_{est}(t)$', linewidth=1)
-ax3.plot(time, q2r_list, 'b--', alpha=0.6, label = r'$q_{ref} (t)$', linewidth=1.5)
-ax3.plot(time, q2e_list, 'b', label=r'$q_{est}(t)$', linewidth=1)
-ax4.plot(time, q3r_list, 'y--', alpha=0.6, label = r'$r_{ref} (t)$', linewidth=1.5)
-ax4.plot(time, q3e_list, 'y', label=r'$r_{est}(t)$', linewidth=1)
-ax4.set_xlabel('Time (s)')
+ax.plot(time, q0r_list, 'r--', label = r'$q_{s,ref} (t)$', linewidth = 1.5)
+ax.plot(time, q0e_list, 'b', label=r'$q_{s,est}(t)$', linewidth=1)
+ax2.plot(time, q1r_list, 'r--', label = r'$q_{x,ref} (t)$', linewidth=1.5)
+ax2.plot(time, q1e_list, 'b', label=r'$q_{x,est}(t)$', linewidth=1)
+ax3.plot(time, q2r_list, 'r--', label = r'$q_{y,ref} (t)$', linewidth=1.5)
+ax3.plot(time, q2e_list, 'b', label=r'$q_{y,est}(t)$', linewidth=1)
+ax4.plot(time, q3r_list, 'r--', label = r'$q_{z,ref} (t)$', linewidth=1.5)
+ax4.plot(time, q3e_list, 'b', label=r'$q_{z,est}(t)$', linewidth=1)
+ax4.set_xlabel('Tempo (s)')
 
-ax.set_title('Orientação Quatérnio')
-
-# ax.set_ylim([-1, 1])
-# ax2.set_ylim([-1, 1])
-# ax3.set_ylim([-1, 1])
-# ax4.set_ylim([-1, 1])
 ax.legend()
-ax2.legend()
-ax3.legend()
+ax2.legend(loc=5)
+ax3.legend(loc=5)
 ax4.legend()
 
+ax.set_ylabel(r'$q_{s}$')
+ax2.set_ylabel(r'$q_{x}$')
+ax3.set_ylabel(r'$q_{y}$')
+ax4.set_ylabel(r'$q_{z}$')
 
-plt.style.use("fivethirtyeight")
+ax.grid()
+ax2.grid()
+ax3.grid()
+ax4.grid()
+
+#-----------------------------------------------------------------------------------------------------
+
 fig3, (az, az2, az3) = plt.subplots(3, 1, figsize=(10,10), sharex=True)
 re_list, pe_list, ye_list, rr_list, pr_list, yr_list, time = [], [], [], [], [], [], []
 
@@ -64,60 +69,64 @@ for line in lines:
         time.append(float(times))
 
 
-az.plot(time, rr_list, 'r--', alpha=0.6, label = r'$\phi_{ref} (t)$', linewidth = 1.5)
-az.plot(time, re_list, 'r', label=r'$\phi_{est}(t)$', linewidth=1)
-az2.plot(time, pr_list, 'g--', alpha=0.6, label = r'$\theta_{ref} (t)$', linewidth=1.5)
-az2.plot(time, pe_list, 'g', label=r'$\theta_{est}(t)$', linewidth=1)
-az3.plot(time, yr_list, 'b--', alpha=0.6, label = r'$\psi_{ref} (t)$', linewidth=1.5)
+az.plot(time, rr_list, 'r--', label = r'$\phi_{ref} (t)$', linewidth = 1.5)
+az.plot(time, re_list, 'b', label=r'$\phi_{est}(t)$', linewidth=1)
+az2.plot(time, pr_list, 'r--', label = r'$\theta_{ref} (t)$', linewidth=1.5)
+az2.plot(time, pe_list, 'b', label=r'$\theta_{est}(t)$', linewidth=1)
+az3.plot(time, yr_list, 'r--', label = r'$\psi_{ref} (t)$', linewidth=1.5)
 az3.plot(time, ye_list, 'b', label=r'$\psi_{est}(t)$', linewidth=1)
-az3.set_xlabel('Sample')
+az3.set_xlabel('Tempo(s)')
 
-az.set_title('Orientação Euler')
-
-# az.set_ylim([-45, 45])
-# az2.set_ylim([-45, 45])
-# az3.set_ylim([-45, 45])
 az.legend()
 az2.legend()
 az3.legend()
 
+az.set_ylabel(r'$\phi(\circ)$')
+az2.set_ylabel(r'$\theta(\circ)$')
+az3.set_ylabel(r'$\psi(\circ)$')
+
+az.grid()
+az2.grid()
+az3.grid()
 
 
+fig2, (ay, ay2, ay3) = plt.subplots(3, 1, figsize=(10,10), sharex=True)
+xe_list, ye_list, ze_list, xr_list, yr_list, zr_list, time_pos = [], [], [], [], [], [], []
 
-# fig2, (ay, ay2, ay3) = plt.subplots(3, 1, figsize=(10,10), sharex=True)
-# xe_list, ye_list, ze_list, xr_list, yr_list, zr_list, time_pos = [], [], [], [], [], [], []
+pos = open("pos_data.txt", "r").read()
+lines_pos = pos.split('\n')
 
-# pos = open("pos_data.txt", "r").read()
-# lines_pos = pos.split('\n')
-
-# for line in lines_pos:
-#     if len(line)>1:
-#         xe, ye, ze, xr, yr, zr, times_pos = line.split(' , ')
-#         xe_list.append(float(xe))
-#         ye_list.append(float(ye))
-#         ze_list.append(float(ze))
-#         xr_list.append(float(xr))
-#         yr_list.append(float(yr))
-#         zr_list.append(float(zr))
-#         time_pos.append(float(times_pos))
+for line in lines_pos:
+    if len(line)>1:
+        xe, ye, ze, xr, yr, zr, times_pos = line.split(' , ')
+        xe_list.append(float(xe))
+        ye_list.append(float(ye))
+        ze_list.append(float(ze))
+        xr_list.append(float(xr))
+        yr_list.append(float(yr))
+        zr_list.append(float(zr))
+        time_pos.append(float(times_pos))
 
 
-# ay.plot(time_pos, xr_list, 'r--', alpha=0.6, label = r'$x_{ref} (t)$', linewidth = 1.5)
-# ay.plot(time_pos, xe_list, 'r', label=r'$x_{est}(t)$', linewidth=1)
-# ay2.plot(time_pos, yr_list, 'g--', alpha=0.6, label = r'$y_{ref} (t)$', linewidth=1.5)
-# ay2.plot(time_pos, ye_list, 'g', label=r'$y_{est}(t)$', linewidth=1)
-# ay3.plot(time_pos, zr_list, 'b--', alpha=0.6, label = r'$z_{ref} (t)$', linewidth=1.5)
-# ay3.plot(time_pos, ze_list, 'b', label=r'$z_{est}(t)$', linewidth=1)
-# ay3.set_xlabel('Sample')
+ay.plot(time_pos, xr_list, 'r--', label = r'$x_{ref} (t)$', linewidth = 1.5)
+ay.plot(time_pos, xe_list, 'b', label=r'$x_{est}(t)$', linewidth=1)
+ay2.plot(time_pos, yr_list, 'r--', label = r'$y_{ref} (t)$', linewidth=1.5)
+ay2.plot(time_pos, ye_list, 'b', label=r'$y_{est}(t)$', linewidth=1)
+ay3.plot(time_pos, zr_list, 'r--', label = r'$z_{ref} (t)$', linewidth=1.5)
+ay3.plot(time_pos, ze_list, 'b', label=r'$z_{est}(t)$', linewidth=1)
+ay3.set_xlabel('Tempo (s)')
 
-# ay.set_title('Posição')
+ay.set_ylabel('X (m)')
+ay2.set_ylabel('Y (m)')
+ay3.set_ylabel('Z (m)')
 
-# # ax.set_ylim([-90, 90])
-# # ax2.set_ylim([-90, 90])
-# ay3.set_ylim([3, 5.2])
-# ay.legend()
-# ay2.legend()
-# ay3.legend()
+ay.legend()
+ay2.legend()
+ay3.legend()
+
+ay.grid()
+ay2.grid()
+ay3.grid()
 
 # fig4, (ab, ab2, ab3) = plt.subplots(3, 1, figsize=(10,10), sharex=True)
 # rce_list, pce_list, yce_list, rcr_list, pcr_list, ycr_list, time = [], [], [], [], [], [], []
@@ -147,12 +156,52 @@ az3.legend()
 
 # ab.set_title('Orientação Euler Camera')
 
-# ab.set_ylim([-45, 45])
-# ab2.set_ylim([-45, 45])
-# # ab3.set_ylim([-45, 45])
 # ab.legend()
 # ab2.legend()
 # ab3.legend()
 
-plt.tight_layout()
 plt.show()
+
+#Mean squared error
+q0_mse = mean_squared_error(q0r_list, q0e_list)
+q1_mse = mean_squared_error(q1r_list, q1e_list)
+q2_mse = mean_squared_error(q2r_list, q2e_list)
+q3_mse = mean_squared_error(q3r_list, q3e_list)
+
+# roll_mse = mean_squared_error(rcr_list, rce_list)
+# pitch_mse = mean_squared_error(pcr_list, pce_list)
+# yaw_mse = mean_squared_error(ycr_list, yce_list)
+
+roll_cam_mse = mean_squared_error(rr_list, re_list)
+pitch_cam_mse = mean_squared_error(pr_list, pe_list)
+yaw_cam_mse = mean_squared_error(yr_list, ye_list)
+
+x_mse = mean_squared_error(xr_list, xe_list)
+y_mse = mean_squared_error(yr_list, ye_list)
+z_mse = mean_squared_error(zr_list, ze_list)
+
+#RMSE
+q0_rmse = math.sqrt(q0_mse)
+q1_rmse = math.sqrt(q1_mse)
+q2_rmse = math.sqrt(q2_mse)
+q3_rmse = math.sqrt(q3_mse)
+
+# roll_rmse = math.sqrt(roll_mse)
+# pitch_rmse = math.sqrt(pitch_mse)
+# yaw_rmse = math.sqrt(yaw_mse)
+
+roll_cam_rmse = math.sqrt(roll_cam_mse)
+pitch_cam_rmse = math.sqrt(pitch_cam_mse)
+yaw_cam_rmse = math.sqrt(yaw_cam_mse)
+
+x_rmse = math.sqrt(x_mse)
+y_rmse = math.sqrt(y_mse)
+z_rmse = math.sqrt(z_mse)
+
+print("MEKF Quaternion RMSE: \n q0 - {0} \n q1 - {1} \n q2 - {2} \n q3 - {3}".format(q0_rmse, q1_rmse, q2_rmse, q3_rmse))
+print("MEKF Euler RMSE: \n Roll - {0} \n Pitch - {1} \n Yaw - {2}".format(roll_cam_rmse, pitch_cam_rmse, yaw_cam_rmse))
+
+# print("Camera Euler RMSE: \n Roll - {0} \n Pitch - {1} \n Yaw - {2}".format(roll_cam_rmse, pitch_cam_rmse, yaw_cam_rmse))
+
+print("Posição Euler RMSE: \n X - {0} \n Y - {1} \n Z - {2}".format(x_rmse, y_rmse, z_rmse))
+
