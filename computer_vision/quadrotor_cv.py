@@ -61,12 +61,13 @@ class computer_vision():
         self.var_v = 0.035**2
         self.var_u = 0.00015**2
         self.b_k = np.array([[0, 0, 0]], dtype='float32').T
-        self.P_k = np.array([[0.1, 0, 0, 0, 0, 0],
-                             [0, .1, 0, 0, 0, 0],
-                             [0, 0, .1, 0, 0, 0],
-                             [0, 0, 0, .01, 0, 0],
-                             [0, 0, 0, 0, .01, 0],
-                             [0, 0, 0, 0, 0, .01]])
+        # self.P_k = np.array([[0.1, 0, 0, 0, 0, 0],
+        #                      [0, .1, 0, 0, 0, 0],
+        #                      [0, 0, .1, 0, 0, 0],
+        #                      [0, 0, 0, .1, 0, 0],
+        #                      [0, 0, 0, 0, .01, 0],
+        #                      [0, 0, 0, 0, 0, .01]])*1000
+        self.P_k = np.eye(6)*1000
         self.dx_k = np.array([[0, 0, 0, 0, 0, 0]], dtype='float32').T
         self.dt = self.quad_position.env.t_step
 
@@ -470,7 +471,7 @@ class computer_vision():
                             self.cam_vec = np.array([[cx, cy, cz]]).T
                             self.cam_vec *= 1/(np.linalg.norm(self.cam_vec))
 
-                            # self.camera_meas_flag = True
+                            self.camera_meas_flag = False
 
                             #Get the standard deviation from camera and accelerometer
 

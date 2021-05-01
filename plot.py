@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import statistics
 from sklearn.metrics import mean_squared_error
 plt.rcParams.update({'font.size': 11})
 
@@ -162,6 +163,17 @@ ay3.grid()
 
 plt.show()
 
+#Percentual Error
+
+# pe_x = [abs(i - j)/j for i, j in zip(xe_list, xr_list)]
+# pe_y = [abs(i - j)/j for i, j in zip(ye_list, yr_list)]
+# pe_z = [abs(i - j)/j for i, j in zip(ze_list, zr_list)]
+
+# print(pe_x)
+# pe_x = statistics.mean(pe_x)
+# pe_y = statistics.mean(pe_y)
+# pe_z = statistics.mean(pe_z)
+
 #Mean squared error
 q0_mse = mean_squared_error(q0r_list, q0e_list)
 q1_mse = mean_squared_error(q1r_list, q1e_list)
@@ -203,5 +215,5 @@ print("MEKF Euler RMSE: \n Roll - {0} \n Pitch - {1} \n Yaw - {2}".format(roll_c
 
 # print("Camera Euler RMSE: \n Roll - {0} \n Pitch - {1} \n Yaw - {2}".format(roll_cam_rmse, pitch_cam_rmse, yaw_cam_rmse))
 
-print("Posição Euler RMSE: \n X - {0} \n Y - {1} \n Z - {2}".format(x_rmse, y_rmse, z_rmse))
+print("Posição RMSE: \n X - {0} \n Y - {1} \n Z - {2}".format(x_rmse, y_rmse, z_rmse))
 
