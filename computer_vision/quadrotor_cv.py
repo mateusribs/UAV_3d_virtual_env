@@ -290,8 +290,8 @@ class computer_vision():
 
             #Accelerometer Measurement Covariance Matrix
             Ra = np.array([[self.var_a, 0, 0],
-                            [0, self.var_a, 0],
-                            [0, 0, self.var_a]], dtype='float32')
+                           [0, self.var_a, 0],
+                           [0, 0, self.var_a]], dtype='float32')
 
             #Kalman Gain
             K_k = P_k@H_ka.T @ inv(H_ka@P_k@H_ka.T + Ra)
@@ -312,7 +312,9 @@ class computer_vision():
 
         #Update Biases
         db = dx_K[3:6,:]
-        b_K = b_k + db   
+        b_K = b_k + db
+
+        print(b_K)   
 
         # print(q_K)
 

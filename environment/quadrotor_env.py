@@ -19,10 +19,11 @@ FURTHER DOCUMENTATION ON README.MD
 ## QUADROTOR PARAMETERS ##
 
 ## SIMULATION BOUNDING BOXES ##
-BB_POS = 5 
+BB_POS = 5
 BB_VEL = 10
 BB_CONTROL = 9
 BB_ANG = np.pi/2
+
 
 # QUADROTOR MASS AND GRAVITY VALUE
 M, G = 1.03, 9.82
@@ -38,10 +39,6 @@ K_F = 1.435e-5
 K_M = 2.4086e-7
 I_R = 5e-5
 T2WR = 2
-
-## INDIRECT CONTROL CONSTANTS ##
-IC_THRUST = 6
-IC_MOMENTUM = 0.8
 
 
 # INERTIA MATRIX
@@ -61,20 +58,50 @@ A = np.array([[A_X,A_Y,A_Z]]).T
 
 
 ## REWARD PARAMETERS ##
+SOLVED_REWARD = 20
+BROKEN_REWARD = -20
+SHAPING_WEIGHT = 5
+SHAPING_INTERNAL_WEIGHTS = [15, 4, 1]
 
 # CONTROL REWARD PENALITIES #
-P_C = 0.2
-P_C_D = 0.3
+P_C = 0.003
+P_C_D = 0
 
 ## TARGET STEADY STATE ERROR ##
-TR = [0.01, 0.1]
-TR_P = [100, 10]
+TR = [0.005, 0.01, 0.1]
+TR_P = [3, 2, 1]
+
+## ROBUST CONTROL PARAMETERS
+class robust_control():
+    def __init__(self):
+        self.D_KF = 0.1
+        self.D_KM = 0.1
+        self.D_M = 0.3
+        self.D_IR = 0.1
+        self.D_J = np.ones(3) * 0.1
+        self.reset()
+        self.gust_std = [[5], [5], [2]]
+        self.gust_period = 500 # integration steps
+        self.i_gust = 0
+        self.gust = np.zeros([3, 1])
+
+    def reset(self):
+        self.episode_kf = np.random.random(4) * self.D_KF
+        self.episode_m = np.random.normal(0, self.D_M, 1)
+        self.episode_ir = np.random.random(4) * self.D_IR
+        self.episode_J = np.eye(3)*np.random.normal(np.zeros(3), self.D_J, [3])
+
+    def wind(self, i):
+        index = (i % self.gust_period) - 1
+        if index % self.gust_period == 0:
+            self.last_gust = self.gust
+            self.gust = np.random.normal(np.zeros([3, 1]), self.gust_std, [3, 1])
+            self.linear_wind_change = np.linspace(self.last_gust, self.gust, self.gust_period)
+        return self.linear_wind_change[index]
 
 
 class quad():
-
-    def __init__(self, t_step, n, euler=0, direct_control=0, T=1):
-        
+    def __init__(self, t_step, n, training = True, euler=0, direct_control=1, T=1, clipped = True):        
         """"
         inputs:
             t_step: integration time step 
@@ -86,36 +113,75 @@ class quad():
                 debug: If on, prints a readable reward funcion, step by step, for a simple reward weight debugging.
         
         """
+        self.clipped = clipped
+
+
+        if training:
+            self.ppo_training = True
+        else:
+            self.ppo_training = False
+        
+        
+        self.mass = M
+        self.gravity = G
         
         self.i = 0
         self.T = T                                              #Initial Steps
         
-        self.bb_cond = np.array([BB_POS, BB_VEL,
-                                 BB_POS, BB_VEL,
-                                 BB_POS, BB_VEL,
-                                 BB_ANG, BB_ANG, 4,
-                                 BB_VEL, BB_VEL, BB_VEL])       #Bounding Box Conditions Array
+        self.bb_cond = np.array([BB_VEL,
+                                 BB_VEL,
+                                 BB_VEL,
+                                 BB_ANG, BB_ANG, 3/4*np.pi,
+                                 BB_VEL*2, BB_VEL*2, BB_VEL*2])       #Bounding Box Conditions Array
+        if not self.ppo_training:
+            self.bb_cond = self.bb_cond*1
+            
+        #Quadrotor states dimension
+        self.state_size = 13       
         
+        #Quadrotor action dimension                            
+        self.action_size = 4                                    
         
-        self.state_size = 13                                   #Quadrotor states dimension
-        self.action_size = 4                                    #Quadrotor action dimension
+        #Env done Flag
+        self.done = True                                        
         
-        
-        self.done = True                                        #Env done Flag
-    
-        self.n = n+self.T                                       #Env Maximum Steps
+        #Env Maximum Steps
+        self.n = n+self.T
+
+                                               
         self.t_step = t_step
+
         
-        self.inv_j = np.linalg.inv(J)
-        self.zero_control = np.ones(4)*(2/T2WR - 1)             #Neutral Action (used in reset and absolute action penality) 
+        #Neutral Action (used in reset and absolute action penalty) 
+        if direct_control:
+            self.zero_control = np.ones(4)*(2/T2WR - 1)             
+        else:
+            self.zero_control = np.array([M*G, 0, 0, 0])
+            
         self.direct_control_flag = direct_control
         
-    def seed(self, seed):
+        self.ang_vel = np.zeros(3)
+        self.prev_ang = np.zeros(3)
+        self.J_mat = J
         
+        #Absolute sum of control efforts over the episode
+        self.abs_sum = 0
+        
+        self.d_xx = np.linspace(0, D, 10)
+        self.d_yy = np.linspace(0, D, 10)
+        self.d_zz = np.linspace(0, D, 10)
+        
+        self.robust_parameters = robust_control()
+        self.robust_control = False
+
+        ev_cd = 'Training' if self.ppo_training else 'Eval'
+        ct_cd = ' with robust environment' if self.robust_control else ''
+        print('Environment Condition: ' + ev_cd + ct_cd)
+        
+    def seed(self, seed):
         """"
         Set random seeds for reproducibility
-        """
-        
+        """       
         np.random.seed(seed)       
     
     
@@ -123,38 +189,73 @@ class quad():
     def f2w(self,f,m):
         """""
         Translates F (Thrust) and M (Body x, y and z moments) into eletric motor angular velocity (rad/s)
+        input:
+            f - thrust 
+            m - body momentum in np.array([[mx, my, mz]]).T
+        outputs:
+            F - Proppeler Thrust - engine 1 to 4
+            w - Proppeler angular velocity - engine 1 to 4
+            F_new - clipped thrust (if control surpasses engine maximum)
+            M_new - clipped momentum (same as above)
         """""
-        x = np.array([[1, 1, 1, 1],
-                      [-D, 0, D, 0],
-                      [0, D, 0, -D],                      
-                      [-K_F/K_M, +K_F/K_M, -K_F/K_M, +K_F/K_M]])      
-        
+        x = np.array([[K_F, K_F, K_F, K_F],
+                      [-D*K_F, 0, D*K_F, 0],
+                      [0, D*K_F, 0, -D*K_F],
+                      [-K_M, +K_M, -K_M, +K_M]])
+
         y = np.array([f, m[0,0], m[1,0], m[2,0]])
         
-        u = np.linalg.solve(x,y)
-        u = np.clip(u,0,T2WR*M*G/4)
-        
-        w_1 = np.sqrt(u[0]/K_F)
-        w_2 = np.sqrt(u[1]/K_F)
-        w_3 = np.sqrt(u[2]/K_F)
-        w_4 = np.sqrt(u[3]/K_F)        
-        w = np.array([w_1,w_2,w_3,w_4])
+        u = np.linalg.solve(x, y)
 
-        FM_new = np.dot(x,u)
+        if self.clipped:
+            u = np.clip(u, 0, T2WR*M*G/4/K_F)
+            w_1 = np.sqrt(u[0])
+            w_2 = np.sqrt(u[1])
+            w_3 = np.sqrt(u[2])
+            w_4 = np.sqrt(u[3])   
+        else:
+            modules = np.zeros(4)
+            for k in range(4):
+                modules[k] = -1 if u[k] < 0 else 1
+            w_1 = np.sqrt(np.abs(u[0]))*modules[0]
+            w_2 = np.sqrt(np.abs(u[1]))*modules[1]
+            w_3 = np.sqrt(np.abs(u[2]))*modules[2]
+            w_4 = np.sqrt(np.abs(u[3]))*modules[3]
+            
+        w = np.array([[w_1,w_2,w_3,w_4]]).T
+
+        if self.robust_control:
+            u -= u*self.robust_parameters.episode_kf
+
+        FM_new = np.dot(x, u)
         
         F_new = FM_new[0]
         M_new = FM_new[1:4]
         
-        return u, w, F_new, M_new
+        step_effort = (u*K_F/(T2WR*M*G/4)*2)-1
         
-    def f2F(self,f_action):
-        f = (f_action+1)*T2WR*M*G/8
+        return step_effort, w, F_new, M_new
+        
+    def f2F(self, f_action):
+        """""
+        Translates Proppeler thrust to body trhust and body angular momentum.
+        input:
+            f_action - proppeler thrust written as np.array([f1, f2, f3, f4])
+                        the proppeler thrust if normalized in [-1, 1] domain, where -1 is 0 thrust and 1 is maximum thrust 
+        output:
+            w - proppeler angular velocity
+            F_new - body thrust
+            M_new - body angular momentum
+        """""
+        f = (f_action + 1) * T2WR * M * G / 8
 
-        
         w = np.array([[np.sqrt(f[0]/K_F)],
                       [np.sqrt(f[1]/K_F)],
                       [np.sqrt(f[2]/K_F)],
                       [np.sqrt(f[3]/K_F)]])
+
+        if self.robust_control:
+            f = f - self.robust_parameters.episode_kf * f
         
         F_new = np.sum(f)
         M_new = np.array([[(f[2]-f[0])*D],
@@ -175,8 +276,12 @@ class quad():
             In indirect mode: Force clipping (preventing motor shutoff and saturates over Thrust to Weight Ratio)
             In direct mode: maps [-1,1] to forces [0,T2WR*G*M/4]
         """
-        self.w, f_in, m_action = self.f2F(action)
-        
+        if self.direct_control_flag:
+            self.w, f_in, m_action = self.f2F(action)
+        else:            
+            f_in = action[0]
+            m_action = np.array([action[1::]]).T            
+
         
         #BODY INERTIAL VELOCITY                
         vel_x = x[1]
@@ -200,50 +305,63 @@ class quad():
         
         # DRAG FORCES ESTIMATION (BASED ON BODY VELOCITIES)
         self.mat_rot = quat_rot_mat(q)
+
         v_inertial = np.array([[vel_x, vel_y, vel_z]]).T
+        if self.robust_control:
+            wind = self.robust_parameters.wind(self.i)
+            v_inertial += wind
+
         v_body = np.dot(self.mat_rot.T, v_inertial)
         f_drag = -0.5*RHO*C_D*np.multiply(A,np.multiply(abs(v_body),v_body))
         
         # DRAG MOMENTS ESTIMATION (BASED ON BODY ANGULAR VELOCITIES)
         
         #Discretization over 10 steps (linear velocity varies over the body)
-        d_xx = np.linspace(0,D,10)
-        d_yy = np.linspace(0,D,10)
-        d_zz = np.linspace(0,D,10)
         m_x = 0
         m_y = 0
         m_z = 0
-        for xx,yy,zz in zip(d_xx,d_yy,d_zz):
-            m_x += -RHO*C_D*BEAM_THICKNESS*D/10*(abs(xx*w_xx)*(xx*w_xx))
-            m_y += -RHO*C_D*BEAM_THICKNESS*D/10*(abs(yy*w_yy)*(yy*w_yy))
-            m_z += -2*RHO*C_D*BEAM_THICKNESS*D/10*(abs(zz*w_zz)*(zz*w_zz))
+        for xx,yy,zz in zip(self.d_xx, self.d_yy, self.d_zz):
+            m_x += -RHO*C_D*BEAM_THICKNESS*D/10*(abs(xx*w_xx)*(xx*w_xx))*xx
+            m_y += -RHO*C_D*BEAM_THICKNESS*D/10*(abs(yy*w_yy)*(yy*w_yy))*yy
+            m_z += -2*RHO*C_D*BEAM_THICKNESS*D/10*(abs(zz*w_zz)*(zz*w_zz))*zz
         
         m_drag = np.array([[m_x],
                            [m_y],
                            [m_z]])
         
-        #GYROSCOPIC EFFECT ESTIMATION (BASED ON ELETRIC MOTOR ANGULAR VELOCITY)                
-        omega_r = (-self.w[0]+self.w[1]-self.w[2]+self.w[3])[0]
-        
-        m_gyro = np.array([[-w_xx*I_R*omega_r],
-                           [+w_yy*I_R*omega_r],
+        #GYROSCOPIC EFFECT ESTIMATION (BASED ON ELETRIC MOTOR ANGULAR VELOCITY)
+        if self.robust_control:
+            ir = I_R*(np.ones(4)+self.robust_parameters.episode_ir)
+            omega_r = (-self.w[0]*ir[0]+self.w[1]*ir[1]-self.w[2]*ir[2]+self.w[3]*ir[3])[0]
+        else:
+            omega_r = (-self.w[0]+self.w[1]-self.w[2]+self.w[3])[0]*I_R
+
+        m_gyro = np.array([[-w_xx*omega_r],
+                           [+w_yy*omega_r],
                            [0]])
 
         #BODY FORCES
         self.f_in = np.array([[0, 0, f_in]]).T
         self.f_body = self.f_in+f_drag
-        
+
+
         #BODY FORCES ROTATION TO INERTIAL
         self.f_inertial = np.dot(self.mat_rot, self.f_body)
         
-        #INERTIAL ACCELERATIONS        
-        accel_x = self.f_inertial[0, 0]/M        
-        accel_y = self.f_inertial[1, 0]/M        
-        accel_z = self.f_inertial[2, 0]/M-G
+        #INERTIAL ACCELERATIONS
+        if self.robust_control:
+            quad_m = M * (1 + self.robust_parameters.episode_m)
+        else:
+            quad_m = M
+
+        accel_x = self.f_inertial[0, 0]/quad_m
+        accel_y = self.f_inertial[1, 0]/quad_m
+        accel_z = self.f_inertial[2, 0]/quad_m-G
         self.accel = np.array([[accel_x, accel_y, accel_z]]).T
 
+        # self.accelerometer_read = self.f_body/quad_m
         self.accelerometer_read = self.mat_rot.T @ (self.accel.flatten() + np.array([0, 0, -G]))
-        
+
         #BODY MOMENTUM
         W = np.array([[w_xx],
                  [w_yy],
@@ -251,8 +369,12 @@ class quad():
 
         m_in = m_action + m_gyro + m_drag - np.cross(W.flatten(), np.dot(J, W).flatten()).reshape((3,1))
 
-        #INERTIAL ANGULAR ACCELERATION        
-        accel_ang = np.dot(self.inv_j,m_in).flatten()
+        #INERTIAL ANGULAR ACCELERATION
+        if self.robust_control:
+            self.inv_j = np.linalg.inv(J + J*self.robust_parameters.episode_J)
+        else:
+            self.inv_j = np.linalg.inv(J)
+        accel_ang = np.dot(self.inv_j, m_in).flatten()
         accel_w_xx = accel_ang[0]
         accel_w_yy = accel_ang[1]
         accel_w_zz = accel_ang[2]
@@ -275,10 +397,10 @@ class quad():
                          accel_w_xx, accel_w_yy, accel_w_zz])
         return out
 
-    def reset(self,det_state = None):
+    def reset(self, det_state = None):
         
         """""
-        inputs:
+        inputs:_, self.w, f_in, m_action = self.f2w(f_in, m_action)
             det_state: 
                 if == 0 randomized initial state
                 else det_state is the actual initial state, depending on the euler flag
@@ -292,22 +414,27 @@ class quad():
         state = []
         action = []
         self.action_hist = []
-        
+
+        self.robust_parameters.reset()
+
         self.solved = 0
         self.done = False
         self.i = 0   
         self.prev_shaping = None
         self.previous_state = np.zeros(self.state_size)
+        self.abs_sum = 0
         
         if det_state is not None:        
             self.previous_state = det_state
+            q = np.array([self.previous_state[6:10]]).T
+            self.ang = quat_euler(q)
         else:
             self.ang = np.random.rand(3)-0.5
             Q_in = euler_quat(self.ang)
-            self.previous_state[0:5:2] = (np.random.rand(3)-0.5)*BB_POS
-            self.previous_state[1:6:2] = (np.random.rand(3)-0.5)*BB_POS/2
+            self.previous_state[0:5:2] = np.clip((np.random.normal([0, 0, 0], 2)), -BB_POS/2, BB_POS/2)
+            self.previous_state[1:6:2] = np.clip((np.random.normal([0, 0, 0], 2)), -BB_VEL/2, BB_VEL/2)
             self.previous_state[6:10] = Q_in.T
-            self.previous_state[10:13] = (np.random.rand(3)-0.5)*1
+            self.previous_state[10:13] = np.clip((np.random.normal([0, 0, 0], 2)), -BB_VEL*1.5, BB_POS*1.5)
         
         for i in range(self.T):
             self.action = self.zero_control
@@ -329,39 +456,38 @@ class quad():
             state: system's state in t+t_step actuated by the action
             done: False, else the system has breached any bounding box, exceeded maximum timesteps, or reached goal.
         """""
-        
-        if self.done:
-            print('\n----WARNING----\n done flag is TRUE, reset the environment with environment.reset() before using environment.step()\n')
         self.i += 1
-        self.action = np.clip(action,-1,1)
-        self.action_hist.append(self.action)
-        
+                
         
         if self.direct_control_flag:
+            self.action = np.clip(action,-1,1)
             u = self.action
             self.clipped_action = self.action
+            self.step_effort = self.action
         else:
-            f_in= action[0]*IC_THRUST+M*G
-            m_action = (np.array([self.action[1:4]]).T)*IC_MOMENTUM
-            u, _, f_new, m_new = self.f2w(f_in,m_action)
-            #CLIPPED ACTION FOR LOGGING 
-            self.clipped_action = np.array([(f_new-M*G)/IC_THRUST,
-                                            m_new[0]/IC_MOMENTUM,
-                                            m_new[1]/IC_MOMENTUM,
-                                            m_new[2]/IC_MOMENTUM])
-        
+            self.action = action
+            self.step_effort, self.w, f_in, m_action = self.f2w(action[0], np.array([action[1::]]).T)
+            self.clipped_action = np.append([f_in], m_action)
+            u = self.clipped_action
+       
+        self.action_hist.append(self.clipped_action)
         
         self.y = (integrate.solve_ivp(self.drone_eq, (0, self.t_step), self.previous_state, args=(u, ))).y
+        
         self.state = np.transpose(self.y[:, -1])
         self.quat_state = np.array([np.concatenate((self.state[0:10], self.V_q))])
         
         q = np.array([self.state[6:10]]).T
         q = q/np.linalg.norm(q)
+
         self.ang = quat_euler(q)
+        self.ang_vel = (self.ang - self.prev_ang)/self.t_step
+        self.prev_ang = self.ang
         self.previous_state = self.state
         self.done_condition()
         self.reward_function()
-        return self.quat_state, self.reward, self.done
+        self.control_effort()
+        return self.state, self.reward, self.done
 
     def done_condition(self):
         
@@ -369,11 +495,11 @@ class quad():
         Checks if bounding boxes done condition have been met
         """""
         
-        cond_x = np.concatenate((self.state[0:6], self.ang, self.state[-3:]))
+        cond_x = np.concatenate((self.state[1:6:2], self.ang, self.state[-3:]))
         for x, c in zip(np.abs(cond_x), self.bb_cond):
             if  x >= c:
                 self.done = True
-
+            
     def reward_function(self, debug=0):
         
         """""
@@ -383,60 +509,64 @@ class quad():
         
         """""
         
-        
         self.reward = 0
         
-        position = self.state[0:5:2]
         velocity = self.state[1:6:2]
         euler_angles = self.ang
         psi = self.ang[2]
         body_ang_vel = self.state[-3:]
         action = self.action
-        action_hist = self.action_hist
+
         
-        shaping = 100*(-norm(position/BB_POS)-norm(velocity/BB_VEL)-norm(psi/4)-0.3*norm(euler_angles[0:2]/BB_ANG))
+        shaping = -SHAPING_WEIGHT/np.sum(SHAPING_INTERNAL_WEIGHTS)*(SHAPING_INTERNAL_WEIGHTS[0]*norm(velocity/BB_VEL)+
+                        SHAPING_INTERNAL_WEIGHTS[1]*norm(psi/4)+
+                        SHAPING_INTERNAL_WEIGHTS[2]*norm(euler_angles[0:2]/BB_ANG))
+        
         
         #CASCADING REWARDS
-        r_state = np.concatenate((position,[psi]))        
-        for TR_i,TR_Pi in zip(TR,TR_P): 
+        r_state = np.concatenate((velocity, [psi]))  
+
+        for TR_i, TR_Pi in zip(TR, TR_P): 
             if norm(r_state) < norm(np.ones(len(r_state))*TR_i):
                 shaping += TR_Pi
-                if norm(euler_angles) < norm(np.ones(3)*TR_i*2):
-                    shaping += TR_Pi
-                if norm(velocity) < norm(np.ones(3)*TR_i):
+                if norm(euler_angles[0:2]) < norm(np.ones(2)*TR_i*4):
                     shaping += TR_Pi
                 break
+        
         
         if self.prev_shaping is not None:
             self.reward = shaping - self.prev_shaping
         self.prev_shaping = shaping
         
-        #ABSOLUTE CONTROL PENALITY
-                   
-        abs_control = -np.sum(np.square(action - self.zero_control)) * P_C
-        #AVERAGE CONTROL PENALITY        
-        avg_control = -np.sum(np.square(action - np.mean(action_hist,0))) * P_C_D
+        #ABSOLUTE CONTROL PENALTY
         
+
         ## TOTAL REWARD SHAPING ##
-        self.reward += + abs_control + avg_control
+        abs_control = -np.sum(np.square(action - self.zero_control)) * P_C
+        self.reward += + abs_control 
         
         #SOLUTION ACHIEVED?
-        target_state = 12*(TR[0]**2)
-        current_state = np.sum(np.square(np.concatenate((position, velocity, euler_angles, body_ang_vel))))      
-
-        if current_state < target_state:
-            self.reward = +500
+        self.target_state = 9*(TR[0]**2)
+        self.current_state = np.sum(np.square(np.concatenate((velocity, euler_angles, body_ang_vel))))      
+        
+        
+        
+        if self.current_state < self.target_state:
+            self.reward += SOLVED_REWARD
             self.solved = 1
-            # self.done = True 
-            
-        if self.i >= self.n and not self.done:
+            if self.ppo_training:
+                self.done = True              
+        elif self.i >= self.n:
             self.reward = self.reward
-            self.done = True
-            self.solved = 0
-            
+            self.solved = 0   
+            self.done=True
         elif self.done:
-            self.reward = -200
-            self.solved = 0
+            self.reward += BROKEN_REWARD
+            self.solved = 0            
+         
+    def control_effort(self):
+        instant_effort = np.sqrt(np.sum(np.square(self.step_effort-np.array([0*M*G, 0, 0, 0]))))
+        self.abs_sum += instant_effort
          
             
 class sensor():
