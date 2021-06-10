@@ -101,7 +101,7 @@ class robust_control():
 
 
 class quad():
-    def __init__(self, t_step, n, training = True, euler=0, direct_control=1, T=1, clipped = True):        
+    def __init__(self, t_step, n, training = True, euler=0, direct_control=0, T=1, clipped = True):        
         """"
         inputs:
             t_step: integration time step 
@@ -580,7 +580,7 @@ class sensor():
     def __init__(self, env,
                  accel_std = 0.1, accel_bias_drift = 0.0005, 
                  gyro_std = 0.035, gyro_bias_drift = 0.00015, 
-                 magnet_std = 15, magnet_bias_drift = 0.075, 
+                 magnet_std = .15, magnet_bias_drift = 0.075, 
                  gps_std_p = 1.71, gps_std_v=0.5):
         
         self.std = [accel_std, gyro_std, magnet_std, gps_std_p, gps_std_v]
@@ -696,11 +696,16 @@ class sensor():
         
         
         #Gravity vector as read from body sensor
-        induced_acceleration = self.quad.f_in.flatten()/M - (self.R @ np.array([[0, 0, -G]]).T).flatten()
-        gravity_body = self.accel() - induced_acceleration
+        # induced_acceleration = self.quad.f_in.flatten()/M - (self.R @ np.array([[0, 0, G]]).T).flatten()
+        gravity_body = self.accel() 
+
+        # print(gravity_body)
+
         #Magnetic Field vector as read from body sensor
-        magnet_body = self.quad.mat_rot.T @ (np.random.normal(magnet_vec, self.m_std))     
-      
+        magnet_body = self.quad.mat_rot.T @ (np.random.normal(magnet_vec, self.m_std))
+        self.mag_body = magnet_body     
+
+        # print(magnet_body)
 
         #Accel vector is more accurate
         #Body Coordinates
@@ -737,7 +742,7 @@ class sensor():
         q = Rotation.from_matrix(self.R.T).as_quat()
         q = np.concatenate(([q[3]], q[0:3]))
 
-        return q, self.R
+        return q, self.R.T
         
     def Madgwick_AHRS_Only_Accel(self, gyro_meas, accel_meas, q_ant):
 
@@ -829,16 +834,30 @@ class sensor():
         return q
 
     def accel_int(self):
-        accel_body = self.accel()      
-        _, R = self.triad()             
-        acceleration = np.dot(R, accel_body) 
+
+        accel_body = self.accel()     
+        _, R = self.triad()  
+
+        R_real = self.quad.mat_rot
+
+        # print(R)
+        # print(R_real)
+
+        acceleration = np.dot(R, accel_body) + np.array([0, 0, G])
        
+        # print(accel_body, self.quad.f_in/M)
+        
+        # print(acceleration, self.quad.accel.T)
+
+        # print('------------------------------------------')
+    
         velocity = self.velocity_t0 + acceleration*self.quad.t_step
         position = self.position_t0 + velocity*self.quad.t_step
         
         self.acceleration_t0 = acceleration
         self.velocity_t0 = velocity
         self.position_t0 = position
+
         return acceleration, velocity, position
     
     def gyro_int(self):

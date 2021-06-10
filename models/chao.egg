@@ -1,0 +1,129 @@
+<CoordinateSystem> { Z-up } 
+<Material> Material.001 {
+  <Scalar> diffr { 0.548454 }
+  <Scalar> diffg { 0.548454 }
+  <Scalar> diffb { 0.548454 }
+  <Scalar> specr { 0.000000 }
+  <Scalar> specg { 0.000000 }
+  <Scalar> specb { 0.000000 }
+  <Scalar> shininess { 12.5 }
+  <Scalar> ambr { 1.000000 }
+  <Scalar> ambg { 1.000000 }
+  <Scalar> ambb { 1.000000 }
+  <Scalar> emitr { 0.000000 }
+  <Scalar> emitg { 0.000000 }
+  <Scalar> emitb { 0.000000 }
+}
+
+<Texture> Texture {
+  "./tex/asphalt.jpg"
+  <Scalar> tex-gen { WORLD_POSITION }
+  <Scalar> envtype { MODULATE }
+  <Scalar> minfilter { LINEAR_MIPMAP_LINEAR }
+  <Scalar> magfilter { LINEAR_MIPMAP_LINEAR }
+  <Scalar> wrap { REPEAT }
+  <Transform> {
+    <Translate> { 1 1 1 }
+    <Scale> { 0.5 0.5 0.5 }
+  }
+}
+
+  <Group> Cube {
+    <Transform> {
+      <Matrix4> {
+        0.9999995231628418 0.0 0.0 0.0 
+        0.0 1.0 0.0 0.0 
+        0.0 0.0 4.999999873689376e-06 0.0 
+        0.0 0.0 0.0 1.0 
+      }
+    }
+    
+    <VertexPool> Cube {
+    
+      <Vertex> 0 {1.000000 1.000000 -0.000005
+      }
+      <Vertex> 1 {1.000000 -1.000000 -0.000005
+      }
+      <Vertex> 2 {-1.000000 -1.000000 -0.000005
+      }
+      <Vertex> 3 {-0.999999 1.000000 -0.000005
+      }
+      <Vertex> 4 {1.000000 0.999999 0.000005
+      }
+      <Vertex> 5 {-0.999999 1.000000 0.000005
+      }
+      <Vertex> 6 {-1.000000 -1.000000 0.000005
+      }
+      <Vertex> 7 {0.999999 -1.000001 0.000005
+      }
+      <Vertex> 8 {1.000000 1.000000 -0.000005
+      }
+      <Vertex> 9 {1.000000 0.999999 0.000005
+      }
+      <Vertex> 10 {0.999999 -1.000001 0.000005
+      }
+      <Vertex> 11 {1.000000 -1.000000 -0.000005
+      }
+      <Vertex> 12 {1.000000 -1.000000 -0.000005
+      }
+      <Vertex> 13 {0.999999 -1.000001 0.000005
+      }
+      <Vertex> 14 {-1.000000 -1.000000 0.000005
+      }
+      <Vertex> 15 {-1.000000 -1.000000 -0.000005
+      }
+      <Vertex> 16 {-1.000000 -1.000000 -0.000005
+      }
+      <Vertex> 17 {-1.000000 -1.000000 0.000005
+      }
+      <Vertex> 18 {-0.999999 1.000000 0.000005
+      }
+      <Vertex> 19 {-0.999999 1.000000 -0.000005
+      }
+      <Vertex> 20 {1.000000 0.999999 0.000005
+      }
+      <Vertex> 21 {1.000000 1.000000 -0.000005
+      }
+      <Vertex> 22 {-0.999999 1.000000 -0.000005
+      }
+      <Vertex> 23 {-0.999999 1.000000 0.000005
+      }}
+    
+    
+    <Polygon> {
+      <TRef> { Texture }
+      <MRef> { Material.001 }
+      <Normal> {0.000000 0.000000 -1.000000}
+      <VertexRef> { 0 1 2 3 <Ref> { Cube }} 
+    }
+    <Polygon> {
+      <TRef> { Texture }
+      <MRef> { Material.001 }
+      <Normal> {0.000000 0.000000 1.000000}
+      <VertexRef> { 4 5 6 7 <Ref> { Cube }} 
+    }
+    <Polygon> {
+      <TRef> { Texture }
+      <MRef> { Material.001 }
+      <Normal> {1.000000 -0.000000 0.000000}
+      <VertexRef> { 8 9 10 11 <Ref> { Cube }} 
+    }
+    <Polygon> {
+      <TRef> { Texture }
+      <MRef> { Material.001 }
+      <Normal> {-0.000000 -1.000000 -0.000000}
+      <VertexRef> { 12 13 14 15 <Ref> { Cube }} 
+    }
+    <Polygon> {
+      <TRef> { Texture }
+      <MRef> { Material.001 }
+      <Normal> {-1.000000 0.000000 -0.000000}
+      <VertexRef> { 16 17 18 19 <Ref> { Cube }} 
+    }
+    <Polygon> {
+      <TRef> { Texture }
+      <MRef> { Material.001 }
+      <Normal> {0.000000 1.000000 0.000000}
+      <VertexRef> { 20 21 22 23 <Ref> { Cube }} 
+    }
+  }

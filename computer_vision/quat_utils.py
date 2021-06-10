@@ -18,9 +18,9 @@ def QuatProd(p, q):
 
 def computeAngles(q0, q1, q2, q3):
 
-    roll = 180*math.atan2(q0*q1 + q2*q3, 0.5 - q1*q1 - q2*q2)/math.pi
-    pitch = 180*math.asin(-2.0 * (q1*q3 - q0*q2))/math.pi
-    yaw = 180*math.atan2(q1*q2 + q0*q3, 0.5 - q2*q2 - q3*q3)/math.pi
+    roll = math.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1*q1 - q2*q2))
+    pitch = math.asin(-2.0 * (q1*q3 - q0*q2))
+    yaw = math.atan2(2*(q1*q2 + q0*q3), 1 - 2*(q2*q2 - q3*q3))
 
     return roll, pitch, yaw
 
@@ -60,3 +60,26 @@ def DerivQuat(w, q):
     dq = 0.5*omega@q
 
     return dq
+
+def Euler2Quat(euler):
+
+    cos_ph = np.cos(euler[0]*0.5)
+    sin_ph = np.sin(euler[0]*0.5)
+
+    cos_th = np.cos(euler[1]*0.5)
+    sin_th = np.sin(euler[1]*0.5)
+
+    cos_ps = np.cos(euler[2]*0.5)
+    sin_ps = np.sin(euler[2]*0.5)
+
+    q0 = cos_ph*cos_th*cos_ps + sin_ph*sin_th*sin_ps
+
+    q1 = sin_ph*cos_th*cos_ps - cos_ph*sin_th*sin_ps
+
+    q2 = cos_ph*sin_th*cos_ps + sin_ph*cos_th*sin_ps 
+
+    q3 = cos_ph*cos_th*sin_ps - sin_ph*sin_th*cos_ps
+
+    q = np.array([[q1, q2, q3, q0]]).T
+
+    return q

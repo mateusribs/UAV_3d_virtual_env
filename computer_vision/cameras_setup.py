@@ -22,5 +22,5 @@ class cameras():
         for i in self.opencv_cam_cal:
             if i.calibrated == False:                
                 return task.cont
-        self.render.run_setup()
+        # self.render.run_setup()
         return task.done

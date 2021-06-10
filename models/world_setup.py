@@ -6,10 +6,20 @@ def world_setup(env, render, mydir):
     env.disableMouse()
     
     # Load the environment model.
-    env.scene = env.loader.loadModel(mydir + "/models/city.egg")
+    # env.scene = env.loader.loadModel(mydir + "/models/city.egg")
+    # env.scene.reparentTo(env.render)
+    # env.scene.setScale(1, 1, 1)
+    # env.scene.setPos(0, 0, 0)
+
+    env.scene = env.loader.loadModel(mydir + "/models/chao.egg")
     env.scene.reparentTo(env.render)
-    env.scene.setScale(1, 1, 1)
+    env.scene.setScale(5, 5, 1)
     env.scene.setPos(0, 0, 0)
+
+    # env.scene = env.loader.loadModel(mydir + "/models/chao.egg")
+    # env.scene.reparentTo(env.render)
+    # env.scene.setScale(1.5, 1.5, 1)
+    # env.scene.setPos(0, 3.5, 0.01)
     
     
 
@@ -120,7 +130,7 @@ def quad_setup(env, render, mydir):
     env.checker_sqr_size = 0.2046
     env.checker.setScale(env.checker_scale, env.checker_scale, 1)
     # env.checker.setPos(3*env.checker_scale*env.checker_sqr_size+0.06, 2.5*env.checker_scale*env.checker_sqr_size+0.06, 0.001)
-    env.checker.setPos(5,2,0.01)
+    env.checker.setPos(10,10,0.01)
 
     env.aruco = env.loader.loadModel(mydir + '/models/aruco.egg')
     env.aruco.reparentTo(env.render)
