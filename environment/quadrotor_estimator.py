@@ -1,8 +1,8 @@
 import numpy as np
-from computer_vision.quat_utils import Quat2Rot, QuatProd, computeAngles, SkewMat, DerivQuat
+from computer_vision.quat_utils import Quat2Rot, QuatProd, SkewMat, DerivQuat, Conj
 from numpy.linalg import inv, det
 import scipy as sci
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation as Rot
 
 
 
@@ -11,16 +11,11 @@ class MEKF():
     def __init__(self, quad_position, sensor):
         
         self.quad_position = quad_position
-
-        self.roll_est_list, self.pitch_est_list, self.yaw_est_list = [], [], []
-        self.roll_real_list, self.pitch_real_list, self.yaw_real_list = [], [], []
         self.sensor = sensor
 
         #MEKF Constants
-        # q_k0, R0 = self.sensor.triad()
-        # self.q_k = np.array([[q_k0[1], q_k0[2], q_k0[3], q_k0[0]]], dtype='float32').T
         self.q_k = np.array([[0, 0, 0, 1]]).T
-        self.var_a = 0.1**2
+        self.var_a = 0.05**2
         self.var_c = 0.0023**2
         self.var_v = 0.035**2
         self.var_u = 0.00015**2
@@ -39,8 +34,7 @@ class MEKF():
     
     #Multiplicative Extended Kalman Filter
     def MEKF(self, cam_vec, cam_vec2):
-    
-            
+        
         #Measurement Update, Quaternion Update and Bias Update
         q_K, b_K, P_K = self.Update_MEKF(self.dx_k, self.q_k, self.b_k, self.P_k, cam_vec, cam_vec2)
             
@@ -53,31 +47,14 @@ class MEKF():
         self.P_k = P_k
         self.dx_k = np.array([[0, 0, 0, 0, 0, 0]], dtype='float32').T
 
-
-        #Get Real Attitude from Quadrotor
-        quat = self.quad_position.state[6:10]
-        quat_real = np.array([quat[1], quat[2], quat[3], quat[0]])
-        r_real = sci.spatial.transform.Rotation.from_quat(quat_real).as_euler('XYZ')
-
-        roll_real = r_real[0]
-        pitch_real = r_real[1]
-        yaw_real = r_real[2]
-        
-
         #Get Euler Angles from Estimated MEKF Quaternion
 
-        r_est = sci.spatial.transform.Rotation.from_quat(self.q_k.flatten()).as_euler('XYZ')
-        self.roll_est = r_est[0]
-        self.pitch_est = r_est[1]
-        self.yaw_est = r_est[2]
+        euler_est = sci.spatial.transform.Rotation.from_quat(self.q_k.flatten()).as_euler('XYZ')
 
-        self.roll_est_list.append(self.roll_est)
-        self.pitch_est_list.append(self.pitch_est)
-        self.yaw_est_list.append(self.yaw_est)
 
-        self.roll_real_list.append(roll_real)
-        self.pitch_real_list.append(pitch_real)
-        self.yaw_real_list.append(yaw_real)
+        self.roll_est = euler_est[0]
+        self.pitch_est = euler_est[1]
+        self.yaw_est = euler_est[2]
 
         
 
@@ -104,6 +81,8 @@ class MEKF():
         Omega_up = np.concatenate((Omega11, Omega12), axis=1)
         Omega_down = np.concatenate((Omega21, Omega22), axis=1)
         Omega = np.concatenate((Omega_up, Omega_down), axis=0)
+
+
         q_kp1 =  Omega@q_K
         q_kp1 *= 1/(np.linalg.norm(q_kp1))
 
@@ -147,6 +126,7 @@ class MEKF():
     def Update_MEKF(self, dx_k, q_k, b_k, P_k, cam_vec, cam_vec2):
         
         #Estimated Rotation Matrix - Global to Local - Inertial to Body
+        # A_q = Rot.from_quat(q_k.reshape(4)).as_matrix()
         A_q = Quat2Rot(q_k)
 
 
@@ -171,6 +151,8 @@ class MEKF():
                 r_a = np.array([[0, 0, -1]]).T
                 #Reference Camera Direction
                 r_c = np.array([[1, 0, 0]]).T
+
+
                 #Camera Estimated Output
                 b_hat_c = A_q @ r_c
                 #Accelerometer Estimated Output

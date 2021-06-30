@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from computer_vision.detector_setup import detection_setup
 from computer_vision.img_2_cv import opencv_camera
 from environment.quadrotor_env import sensor
-from computer_vision.quat_utils import Quat2Rot, QuatProd, computeAngles, SkewMat, DerivQuat, Euler2Quat
+from computer_vision.quat_utils import Quat2Rot, QuatProd, SkewMat, DerivQuat, Euler2Quat
 
 
 
@@ -23,6 +23,8 @@ class computer_vision():
 
         self.mtx1 = camera_cal1.mtx
         self.dist1 = camera_cal1.dist
+
+        print(self.mtx1)
 
         self.mtx2 = camera_cal2.mtx
         self.dist2 = camera_cal2.dist
@@ -57,8 +59,15 @@ class computer_vision():
         self.index2 = 0
         self.time = 0
 
-        self.cam_vec = np.zeros((3,1))
-        self.cam_vec2 = np.zeros((3,1))
+        self.position_mean = None
+        self.cam_vec = None
+        self.cam_vec2 = None
+
+        self.cx_list = deque(maxlen=10)
+        self.cy_list = deque(maxlen=10)
+        self.cz_list = deque(maxlen=10)
+        # self.cam_vec = np.zeros((3,1))
+        # self.cam_vec2 = np.zeros((3,1))
 
 
         #Run Tasks
@@ -186,10 +195,29 @@ class computer_vision():
                     cy = 2*(float(q_obj_b[0])*float(q_obj_b[1]) + float(q_obj_b[3])*float(q_obj_b[2]))
                     cz = 2*(float(q_obj_b[0])*float(q_obj_b[2]) - float(q_obj_b[3])*float(q_obj_b[1]))
 
+                    
+                    if self.cx_list is not None and len(self.cx_list) > 1:
+                        
+                        if cx >= self.mean_cx + 0.2 or cx <= self.mean_cx - 0.2:
+                            cx = self.cx_list[-1]
+
+                        if cy >= self.mean_cy + 0.2 or cy <= self.mean_cy - 0.2:
+                            cy = self.cy_list[-1]
+                        
+                        if cz >= self.mean_cz + 0.2 or cz <= self.mean_cz - 0.2:
+                            cz = self.cz_list[-1]
+                        
 
                     cam_vec = np.array([[cx, cy, cz]]).T
-                    cam_vec *= 1/(np.linalg.norm(cam_vec))
+                    cam_vec *= 1/(np.linalg.norm(cam_vec))                    
 
+                    self.cx_list.append(cx)
+                    self.cy_list.append(cy)
+                    self.cz_list.append(cz)
+
+                    self.mean_cx = statistics.mean(self.cx_list)
+                    self.mean_cy = statistics.mean(self.cy_list)
+                    self.mean_cz = statistics.mean(self.cz_list)
 
                     #Draw ArUco contourn and Axis
                     cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvec_obj, tvec_obj, 0.185)
@@ -233,27 +261,40 @@ class computer_vision():
 
                 self.position2, self.quat2, self.cam_vec2, image2 = self.aruco_detection(image2, dictionary, rvecs2, tvecs2)
 
+                # self.cam_vec, self.cam_vec2 = None, None
+
+                # self.position = None
+                # self.position2 = None
+
                 if self.position is not None:
                     #Corrected Position Camera 1
 
-                    self.position[0] = self.position[0]*0.954 + 0.0605 + 0.04
+                    self.position[0] = self.position[0]*0.968 + 0.0845
                     self.position[1] = self.position[1]*0.895 + 0.632
                     self.position[2] = self.position[2]*0.83 - 1.71
+
+                    # Z correction
+                    self.position[0] -= -self.position[2]*0.0299 + 0.0559
+                    self.position[1] -= -self.position[2]*0.0112 + 0.0114
 
                     # print('Posição 1:', self.position.T)
 
                 if self.position2 is not None:
                     #Corrected Position Camera 2
                     
-                    self.position2[0] = self.position2[0]*0.888 + 1.1 + 0.04
+                    self.position2[0] = self.position2[0]*0.901 + 1.19
                     self.position2[1] = self.position2[1]*0.927 + 0.0131
                     self.position2[2] = self.position2[2]*0.874 - 1.77
+
+                    # Z correction
+                    self.position2[0] -= -self.position2[2]*0.0743 + 0.147
+                    self.position2[1] -= -self.position2[2]*0.000529 + 0.00895
 
                     # print('Posição 2:', self.position2.T)
                 
                 if self.position is not None and self.position2 is not None:
 
-                    self.position_mean = (self.position + self.position2)/2
+                    self.position_mean = self.position*0.9 + self.position2*0.1
 
                 if self.position is not None and self.position2 is None:
 

@@ -15,14 +15,7 @@ def QuatProd(p, q):
     q_res = np.concatenate((vector, scalar), axis=0)
 
     return q_res
-
-def computeAngles(q0, q1, q2, q3):
-
-    roll = math.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1*q1 - q2*q2))
-    pitch = math.asin(-2.0 * (q1*q3 - q0*q2))
-    yaw = math.atan2(2*(q1*q2 + q0*q3), 1 - 2*(q2*q2 - q3*q3))
-
-    return roll, pitch, yaw
+    
 
 def Quat2Rot(q):
 
@@ -83,3 +76,14 @@ def Euler2Quat(euler):
     q = np.array([[q1, q2, q3, q0]]).T
 
     return q
+
+
+def Conj(q):
+
+    q1_c = -q[0]
+    q2_c = -q[1]
+    q3_c = -q[2]
+
+    q_c = np.array([q1_c, q2_c, q3_c, q[3]])
+
+    return q_c

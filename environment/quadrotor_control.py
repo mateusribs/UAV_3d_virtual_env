@@ -33,6 +33,8 @@ class Controller:
         self.ed1_ant = 0
         self.ed2_ant = 0
         self.ed3_ant = 0
+
+        self.ang_ant_des = np.zeros((3,1))
     
     def trajectory_generator(self, radius, frequency, max_h, min_h):
         
@@ -220,21 +222,23 @@ class Controller:
         psi = float(ang_atual[2])
 
         #PID gains Real States
-        # Kp = np.array([[200, 0 ,0],
-        #                [0, 200, 0],
-        #                [0, 0, 100]])*8.5
-        # Kd = np.array([[50, 0, 0],
-        #                [0, 50, 0],
-        #                [0, 0, 35]])*1.1
+        Kp = np.array([[22, 0 ,0],
+                       [0, 22, 0],
+                       [0, 0, 1]])*4
+        Kd = np.array([[12, 0, 0],
+                       [0, 12, 0],
+                       [0, 0, .1]])*3
+        
+        
 
 
         #PD gains Estimated States
-        Kp = np.array([[200, 0 ,0],
-                       [0, 200, 0],
-                       [0, 0, 120]])*2
-        Kd = np.array([[50, 0, 0],
-                       [0, 50, 0],
-                       [0, 0, 45]])*1
+        # Kp = np.array([[200, 0 ,0],
+        #                [0, 200, 0],
+        #                [0, 0, 120]])*1.5
+        # Kd = np.array([[50, 0, 0],
+        #                [0, 50, 0],
+        #                [0, 0, 45]])*1
 
         # Kp = np.array([[20, 0 ,0],
         #                [0, 20, 0],
@@ -251,7 +255,10 @@ class Controller:
         #                [0, 0, 35]])*1.3
         
         angle_error = ang_des - ang_atual
-        ang_vel_error = np.zeros((3,1)) - ang_vel_atual
+
+        ang_vel_des = (ang_des - self.ang_ant_des)/0.01
+
+        ang_vel_error = ang_vel_des - ang_vel_atual
         #Compute Optimal Control Law
 
         # print(angle_error.T)
@@ -268,55 +275,57 @@ class Controller:
         tau_y = float(u[1])
         tau_z = float(u[2])
 
+        self.ang_ant_des = ang_des
+
         return tau_x, tau_y, tau_z
     
     def pos_control_PD(self, pos_atual, pos_des, vel_atual, vel_des, accel_des, psi):
 
         #PD gains Real States
-        # Kp = np.array([[4, 0 ,0],
-        #                [0, 2, 0],
-        #                [0, 0, 9.5]])*10.5
-        # Kd = np.array([[4.5, 0, 0],
-        #                [0, 4, 0],
-        #                [0, 0, 4]])*3.8
-
-        Kp = np.array([[2, 0 ,0],
-                       [0, 2, 0],
-                       [0, 0, 1.5]])*1.5
+        Kp = np.array([[6, 0 ,0],
+                       [0, 6, 0],
+                       [0, 0, 6]])*1
         Kd = np.array([[3, 0, 0],
-                       [0, 2, 0],
-                       [0, 0, 1]])*1.5
+                       [0, 3, 0],
+                       [0, 0, 3]])*1
+
+        # Kp = np.array([[2, 0 ,0],
+        #                [0, 2, 0],
+        #                [0, 0, 1.5]])*1.5
+        # Kd = np.array([[3, 0, 0],
+        #                [0, 2, 0],
+        #                [0, 0, 1]])*1.5
 
         dpos_error = pos_des - pos_atual
 
         vel_error = vel_des - vel_atual
 
-        # n = vel_des/np.linalg.norm(vel_des)
-        # t = accel_des/np.linalg.norm(accel_des)
-        # b = np.cross(t, n, axis=0)
+        n = accel_des/np.linalg.norm(accel_des)
+        t = vel_des/np.linalg.norm(vel_des)
+        b = np.cross(t, n, axis=0)
 
-        # if np.isnan(b).any:
-        #     pos_error = dpos_error
-        # else:
-        #     pos_error = (dpos_error.T@n)@n + (dpos_error.T@b)@b
+        if np.isnan(b).any:
+            pos_error = dpos_error
+        else:
+            pos_error = (dpos_error.T@n)@n + (dpos_error.T@b)@b
 
 
-        u = Kp@dpos_error + Kd@vel_error
+        # u = Kp@dpos_error + Kd@vel_error
 
-        theta_des = np.arctan(u[0]/(u[2]+9.82))
+        # theta_des = np.arctan2(u[0], (u[2]+9.82))
 
-        phi_des = np.arctan(-u[1]/(u[2]+9.82)*np.cos(theta_des))
+        # phi_des = np.arctan2(-u[1], (u[2]+9.82)*np.cos(theta_des))
 
-        T = 1.03*(u[2] + 9.82)/(np.cos(theta_des)*np.cos(phi_des))
+        # T = 1.03*(u[2] + 9.82)/(np.cos(theta_des)*np.cos(phi_des))
 
         
-        alo = 1
-        # rddot_c = accel_des + Kd@vel_error + Kp@pos_error
+        # alo = 1
+        rddot_c = accel_des + Kd@vel_error + Kp@pos_error
 
-        # T = self.M*(self.G + rddot_c[2])
+        T = self.M*(self.G + rddot_c[2])
 
-        # phi_des = (rddot_c[0]*np.sin(psi) - rddot_c[1]*np.cos(psi))/self.G
-        # theta_des = (rddot_c[0]*np.cos(psi) + rddot_c[1]*np.sin(psi))/self.G
+        phi_des = (rddot_c[0]*np.sin(psi) - rddot_c[1]*np.cos(psi))/self.G
+        theta_des = (rddot_c[0]*np.cos(psi) + rddot_c[1]*np.sin(psi))/self.G
 
         return T, phi_des, theta_des
 
