@@ -16,7 +16,8 @@ class MEKF():
         #MEKF Constants
         self.q_k = np.array([[0, 0, 0, 1]]).T
         self.var_a = 0.05**2
-        self.var_c = 0.0023**2
+        self.var_c = 0.01805**2
+        self.var_c2 = 0.0127**2
         self.var_v = 0.035**2
         self.var_u = 0.00015**2
         self.b_k = np.array([[0, 0, 0]], dtype='float32').T
@@ -240,9 +241,9 @@ class MEKF():
                 
                 
                 #Camera Measurement Covariance Matrix
-                Rc = np.array([[self.var_c, 0, 0],
-                                [0, self.var_c, 0],
-                                [0, 0, self.var_c]], dtype='float32')
+                Rc = np.array([[self.var_c2, 0, 0],
+                                [0, self.var_c2, 0],
+                                [0, 0, self.var_c2]], dtype='float32')
                 
                 #General Measurement Covariance Matrix
                 R_top = np.concatenate((Ra, np.zeros((3,3))), axis=1)
@@ -306,10 +307,14 @@ class MEKF():
                                 [0, self.var_c, 0],
                                 [0, 0, self.var_c]], dtype='float32')
                 
+                Rc2 = np.array([[self.var_c2, 0, 0],
+                                [0, self.var_c2, 0],
+                                [0, 0, self.var_c2]], dtype='float32')
+                
                 #General Measurement Covariance Matrix
                 R_top = np.concatenate((Ra, np.zeros((3,6))), axis=1)
                 R_middle = np.concatenate((np.zeros((3,3)), Rc, np.zeros((3,3))), axis=1)
-                R_down = np.concatenate((np.zeros((3,6)), Rc), axis=1)
+                R_down = np.concatenate((np.zeros((3,6)), Rc2), axis=1)
                 R = np.concatenate((R_top, R_middle, R_down), axis=0) 
 
                 #Kalman Gain

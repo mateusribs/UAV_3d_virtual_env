@@ -25,7 +25,7 @@ mydir = Filename.fromOsSpecific(mydir).getFullpath()
 
 
 
-frame_interval = 5
+frame_interval = 4
 cam_names = ('cam_1', 'cam_2')
 
 
@@ -40,7 +40,6 @@ class MyApp(ShowBase):
         # MODELS SETUP
         world_setup(self, render, mydir)
         quad_setup(self, render, mydir)
-
         self.quad_sim = quad_sim(self)            
         
 
@@ -88,25 +87,25 @@ class MyApp(ShowBase):
             a.set_title('Atitude')
 
             a.plot(t, self.quad_sim.phi_est_list, 'r', label=r'$\phi_{est}$')
-            # a.plot(t, self.quad_sim.phi_real_list, 'y--', label=r'$\phi_{real}$')
-            a.plot(t, self.quad_sim.phi_des_list, 'g--', label=r'$\phi_{des}$')
+            a.plot(t, self.quad_sim.phi_real_list, 'y--', label=r'$\phi_{real}$')
+            # a.plot(t, self.quad_sim.phi_des_list, 'g--', label=r'$\phi_{des}$')
             a.grid()
             a.set_ylabel(r'$\phi$ (rad)')
             a.legend()
             # a.set_ylim(-0.1, 0.1)
 
             b.plot(t, self.quad_sim.theta_est_list, 'r', label=r'$\theta_{est}$')
-            # b.plot(t, self.quad_sim.theta_real_list, 'y--', label=r'$\theta_{real}$')
-            b.plot(t, self.quad_sim.theta_des_list, 'g--', label=r'$\theta_{des}$')
+            b.plot(t, self.quad_sim.theta_real_list, 'y--', label=r'$\theta_{real}$')
+            # b.plot(t, self.quad_sim.theta_des_list, 'g--', label=r'$\theta_{des}$')
             b.grid()
             b.set_ylabel(r'$\theta$ (rad)')
             b.legend()
             # b.set_ylim(-0.1, 0.1)
 
             c.plot(t, self.quad_sim.psi_est_list, 'r', label=r'$\psi_{est}$')
-            # c.plot(t, self.quad_sim.psi_real_list, 'y--', label=r'$\psi_{real}$')
-            c.plot(t, self.quad_sim.psi_ref, 'g--', label=r'$\psi_{des}$')
-            c.plot(self.quad_sim.time, self.quad_sim.psi_wp, 'bo', label=r'$\psi_{waypoint}$')
+            c.plot(t, self.quad_sim.psi_real_list, 'y--', label=r'$\psi_{real}$')
+            # c.plot(t, self.quad_sim.psi_ref, 'g--', label=r'$\psi_{des}$')
+            # c.plot(self.quad_sim.time, self.quad_sim.psi_wp, 'bo', label=r'$\psi_{waypoint}$')
             c.grid()
             c.set_ylabel(r'$\psi$ (rad)')
             c.set_xlabel('Tempo (s)')
@@ -119,27 +118,27 @@ class MyApp(ShowBase):
             x.set_title('Posição')
 
             x.plot(t, self.quad_sim.x_est_list, 'r', label=r'$x_{est}$')
-            # x.plot(t, self.quad_sim.x_real_list, 'y--', label=r'$x_{real}$')
-            x.plot(t, self.quad_sim.x_ref, 'g--', label=r'$x_{des}$')
-            x.plot(self.quad_sim.time, self.quad_sim.x_wp, 'bo', label=r'$x_{waypoint}$')
+            x.plot(t, self.quad_sim.x_real_list, 'y--', label=r'$x_{real}$')
+            # x.plot(t, self.quad_sim.x_ref, 'g--', label=r'$x_{des}$')
+            # x.plot(self.quad_sim.time, self.quad_sim.x_wp, 'bo', label=r'$x_{waypoint}$')
             x.grid()
             x.set_ylabel(r'$X$ (m)')
             x.legend()
             # a.set_ylim(-0.1, 0.1)
 
             y.plot(t, self.quad_sim.y_est_list, 'r', label=r'$y_{est}$')
-            # y.plot(t, self.quad_sim.y_real_list, 'y--', label=r'$y_{real}$')
-            y.plot(t, self.quad_sim.y_ref, 'g--', label=r'$y_{des}$')
-            y.plot(self.quad_sim.time, self.quad_sim.y_wp, 'bo', label=r'$y_{waypoint}$')
+            y.plot(t, self.quad_sim.y_real_list, 'y--', label=r'$y_{real}$')
+            # y.plot(t, self.quad_sim.y_ref, 'g--', label=r'$y_{des}$')
+            # y.plot(self.quad_sim.time, self.quad_sim.y_wp, 'bo', label=r'$y_{waypoint}$')
             y.grid()
             y.set_ylabel(r'$Y$ (m)')
             y.legend()
             # b.set_ylim(-0.1, 0.1)
 
             z.plot(t, self.quad_sim.z_est_list, 'r', label=r'$z_{est}$')
-            # z.plot(t, self.quad_sim.z_real_list, 'y--', label=r'$z_{real}$')
-            z.plot(t, self.quad_sim.z_ref, 'g--', label=r'$z_{des}$')
-            z.plot(self.quad_sim.time, self.quad_sim.z_wp, 'bo', label=r'$z_{waypoint}$')
+            z.plot(t, self.quad_sim.z_real_list, 'y--', label=r'$z_{real}$')
+            # z.plot(t, self.quad_sim.z_ref, 'g--', label=r'$z_{des}$')
+            # z.plot(self.quad_sim.time, self.quad_sim.z_wp, 'bo', label=r'$z_{waypoint}$')
             z.grid()
             z.set_ylabel(r'$Z$ (m)')
             z.set_xlabel('Tempo (s)')
@@ -151,31 +150,34 @@ class MyApp(ShowBase):
             fig3 = plt.figure()
             ax = plt.axes(projection='3d')
             ax.set_title('Trajetória')
-            ax.plot3D(self.quad_sim.x_ref, self.quad_sim.y_ref, self.quad_sim.z_ref, 'g--')
-            # ax.plot3D(self.quad_sim.x_real_list, self.quad_sim.y_real_list, self.quad_sim.z_real_list, 'y--')
+            # ax.plot3D(self.quad_sim.x_ref, self.quad_sim.y_ref, self.quad_sim.z_ref, 'g--')
+            ax.plot3D(self.quad_sim.x_real_list, self.quad_sim.y_real_list, self.quad_sim.z_real_list, 'y--')
             ax.plot3D(self.quad_sim.x_est_list, self.quad_sim.y_est_list, self.quad_sim.z_est_list, 'r')
             ax.scatter(self.quad_sim.x_wp, self.quad_sim.y_wp, self.quad_sim.z_wp, 'bo')
+            ax.set_xlabel('X(m)')
+            ax.set_ylabel('Y(m)')
+            ax.set_zlabel('Z(m)')
 
             plt.show()
 
 
             #Mean squared error w.r.t desired state
-            phi_mse = mean_squared_error(self.quad_sim.phi_des_list, self.quad_sim.phi_est_list)
-            theta_mse = mean_squared_error(self.quad_sim.theta_des_list, self.quad_sim.theta_est_list)
-            psi_mse = mean_squared_error(self.quad_sim.psi_ref, self.quad_sim.psi_est_list)
+            # phi_mse = mean_squared_error(self.quad_sim.phi_des_list, self.quad_sim.phi_est_list)
+            # theta_mse = mean_squared_error(self.quad_sim.theta_des_list, self.quad_sim.theta_est_list)
+            # psi_mse = mean_squared_error(self.quad_sim.psi_ref, self.quad_sim.psi_est_list)
 
-            x_mse = mean_squared_error(self.quad_sim.x_ref, self.quad_sim.x_est_list)
-            y_mse = mean_squared_error(self.quad_sim.y_ref, self.quad_sim.y_est_list)
-            z_mse = mean_squared_error(self.quad_sim.z_ref, self.quad_sim.z_est_list)
+            # x_mse = mean_squared_error(self.quad_sim.x_ref, self.quad_sim.x_est_list)
+            # y_mse = mean_squared_error(self.quad_sim.y_ref, self.quad_sim.y_est_list)
+            # z_mse = mean_squared_error(self.quad_sim.z_ref, self.quad_sim.z_est_list)
 
             #Mean squared error w.r.t desired state
-            # phi_mse = mean_squared_error(self.quad_sim.phi_real_list, self.quad_sim.phi_est_list)
-            # theta_mse = mean_squared_error(self.quad_sim.theta_real_list, self.quad_sim.theta_est_list)
-            # psi_mse = mean_squared_error(self.quad_sim.psi_real_list, self.quad_sim.psi_est_list)
+            phi_mse = mean_squared_error(self.quad_sim.phi_real_list, self.quad_sim.phi_est_list)
+            theta_mse = mean_squared_error(self.quad_sim.theta_real_list, self.quad_sim.theta_est_list)
+            psi_mse = mean_squared_error(self.quad_sim.psi_real_list, self.quad_sim.psi_est_list)
 
-            # x_mse = mean_squared_error(self.quad_sim.x_real_list, self.quad_sim.x_est_list)
-            # y_mse = mean_squared_error(self.quad_sim.y_real_list, self.quad_sim.y_est_list)
-            # z_mse = mean_squared_error(self.quad_sim.z_real_list, self.quad_sim.z_est_list)
+            x_mse = mean_squared_error(self.quad_sim.x_real_list, self.quad_sim.x_est_list)
+            y_mse = mean_squared_error(self.quad_sim.y_real_list, self.quad_sim.y_est_list)
+            z_mse = mean_squared_error(self.quad_sim.z_real_list, self.quad_sim.z_est_list)
 
             #RMSE
             phi_rmse = math.sqrt(phi_mse)
@@ -189,8 +191,7 @@ class MyApp(ShowBase):
             print("MEKF Attitude RMSE: \n Phi - {0} \n Theta - {1} \n Psi - {2}".format(phi_rmse, theta_rmse, psi_rmse))
 
             print("Posição RMSE: \n X - {0} \n Y - {1} \n Z - {2}".format(x_rmse, y_rmse, z_rmse))
-
-
+            
 
             return task.done
            

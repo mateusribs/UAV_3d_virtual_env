@@ -43,6 +43,11 @@ class quad_sim():
         
         # self.PD = True
 
+        # self.x_wp = np.array([[0.0, 0.0, 0.0, 0.0, 0.0]]).T
+        # self.y_wp = np.array([[0.4, 0.4, 0.4, 0.4, 0.4]]).T
+        # self.z_wp = np.array([[2, 2, 2, 2, 2]]).T
+        # self.psi_wp = np.array([[0, 0, 0, 0, 0]]).T
+
         # self.x_wp = np.array([[0.2, 0.4, 0.4, 0.4, 0.6]]).T
         # self.y_wp = np.array([[0, 0, 0.2, 0.4, 0.3]]).T
         # self.z_wp = np.array([[2, 2.5, 3, 3, 3]]).T
@@ -54,7 +59,7 @@ class quad_sim():
         # self.psi_wp = np.array([[0, 0, 0, 0, np.pi/4]]).T
 
         self.x_wp = np.array([[0.2, 0.2, 0.2, 0.4, 0.4]]).T
-        self.y_wp = np.array([[0, 0.2, 0.1, 0.2, 0]]).T
+        self.y_wp = np.array([[-0.2, -0.4, -0.6, -0.8, -1.2]]).T
         self.z_wp = np.array([[3.2, 3.2, 3, 2.5, 2]]).T
         self.psi_wp = np.array([[0, np.pi/4, np.pi/2, np.pi/4, 0]]).T
 
@@ -143,7 +148,7 @@ class quad_sim():
         
         self.quad_model.setPos(*pos)
         self.quad_model.setHpr(*ang_deg)
-        # self.quad_model.setPos((0.5, 0, 3.2))
+        # self.quad_model.setPos((0.5, 0, 1.7))
         # self.quad_model.setHpr((0, 0, 0))
         # self.render.dlightNP.setPos(*pos)
         # for prop, a in zip(self.prop_models, self.a):
@@ -184,7 +189,7 @@ class quad_sim():
    
         psi = self.psi_ref[i]
 
-        T, phi_des, theta_des = self.controller.pos_control_PD(pos_atual, pos_ref, vel_real, vel_ref, accel_ref, psi)
+        T, phi_des, theta_des = self.controller.pos_control_PD(pos_real, pos_ref, vel_real, vel_ref, accel_ref, psi)
         
         ang_des = np.array([[float(phi_des), float(theta_des), float(psi)]]).T
 
@@ -194,7 +199,7 @@ class quad_sim():
         #Inner Loop - Attitude Control
             
         #Initialize MEKF
-        self.MEKF.MEKF(None, None)
+        self.MEKF.MEKF(cv.cam_vec, cv.cam_vec2)
 
         ang = self.quad_env.ang
 
@@ -208,7 +213,7 @@ class quad_sim():
         ang_vel_real = np.array([ang_vel_atual[0], ang_vel_atual[1], ang_vel_atual[2]])
 
         #Run Attitude Control
-        taux, tauy, tauz = self.controller.att_control_PD(ang_atual, ang_vel_atual, ang_des)
+        taux, tauy, tauz = self.controller.att_control_PD(ang_real, ang_vel_real, ang_des)
 
         action = np.array([float(T), taux, tauy, tauz])
         x, _, _ = self.quad_env.step(action)

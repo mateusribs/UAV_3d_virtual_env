@@ -48,8 +48,8 @@ class computer_vision():
         self.cv_cam_2 = cv_cam_2
         self.cv_cam_2.cam.node().getLens().setFilmSize(36, 24)
         self.cv_cam_2.cam.node().getLens().setFocalLength(40)
-        self.cv_cam_2.cam.setPos(-3.5, 0, 6)
-        self.cv_cam_2.cam.setHpr(290, 310, 0)
+        self.cv_cam_2.cam.setPos(0, 2.5, 6)
+        self.cv_cam_2.cam.setHpr(180, 305, 0)
         # self.cv_cam.cam.lookAt(0, 0, 0)
         self.cv_cam_2.cam.reparentTo(self.render.render)
 
@@ -63,18 +63,32 @@ class computer_vision():
         self.cam_vec = None
         self.cam_vec2 = None
 
-        self.cx_list = deque(maxlen=10)
-        self.cy_list = deque(maxlen=10)
-        self.cz_list = deque(maxlen=10)
-        # self.cam_vec = np.zeros((3,1))
-        # self.cam_vec2 = np.zeros((3,1))
+        self.cx_list = deque(maxlen=3)
+        self.cy_list = deque(maxlen=3)
+        self.cz_list = deque(maxlen=3)
+
+        self.cx_list2 = deque(maxlen=3)
+        self.cy_list2 = deque(maxlen=3)
+        self.cz_list2 = deque(maxlen=3)
+
+        self.mean_cx = None
+        self.mean_cy = None
+        self.mean_cz = None
+        self.mean2_cx = None
+        self.mean2_cy = None
+        self.mean2_cz = None
+
+        self.cx_list2 = []
+        self.cy_list2 = []
+        self.cz_list2 = []
+        
 
 
         #Run Tasks
         # self.render.taskMgr.add(self.img_show, 'OpenCv Image Show')
 
 
-    def aruco_detection(self, image, dictionary, rvecs, tvecs):
+    def aruco_detection(self, image, dictionary, rvecs, tvecs, cx_list, cy_list, cz_list, mean_cx, mean_cy, mean_cz):
         
         position = None
         q_obj_b = None
@@ -194,30 +208,23 @@ class computer_vision():
                     cx = float(q_obj_b[3])**2 + float(q_obj_b[0])**2 - float(q_obj_b[1])**2 - float(q_obj_b[2])**2
                     cy = 2*(float(q_obj_b[0])*float(q_obj_b[1]) + float(q_obj_b[3])*float(q_obj_b[2]))
                     cz = 2*(float(q_obj_b[0])*float(q_obj_b[2]) - float(q_obj_b[3])*float(q_obj_b[1]))
-
                     
-                    if self.cx_list is not None and len(self.cx_list) > 1:
-                        
-                        if cx >= self.mean_cx + 0.2 or cx <= self.mean_cx - 0.2:
-                            cx = self.cx_list[-1]
 
-                        if cy >= self.mean_cy + 0.2 or cy <= self.mean_cy - 0.2:
-                            cy = self.cy_list[-1]
+                    # if cx_list is not None and len(cx_list) > 1 and mean_cx is not None:
                         
-                        if cz >= self.mean_cz + 0.2 or cz <= self.mean_cz - 0.2:
-                            cz = self.cz_list[-1]
+                    #     if cx >= mean_cx + 0.05 or cx <= mean_cx - 0.05:
+                    #         cx = cx_list[-1]
+
+                    #     if cy >= mean_cy + 0.05 or cy <= mean_cy - 0.05:
+                    #         cy = cy_list[-1]
                         
+                    #     if cz >= mean_cz + 0.05 or cz <= mean_cz - 0.05:
+                    #         cz = cz_list[-1]
+
 
                     cam_vec = np.array([[cx, cy, cz]]).T
-                    cam_vec *= 1/(np.linalg.norm(cam_vec))                    
-
-                    self.cx_list.append(cx)
-                    self.cy_list.append(cy)
-                    self.cz_list.append(cz)
-
-                    self.mean_cx = statistics.mean(self.cx_list)
-                    self.mean_cy = statistics.mean(self.cy_list)
-                    self.mean_cz = statistics.mean(self.cz_list)
+                    cam_vec *= 1/(np.linalg.norm(cam_vec))
+                                     
 
                     #Draw ArUco contourn and Axis
                     cv.aruco.drawAxis(image, self.mtx1, self.dist1, rvec_obj, tvec_obj, 0.185)
@@ -257,13 +264,32 @@ class computer_vision():
         
         ####################################### ARUCO MARKER POSE ESTIMATION #########################################################################
 
-                self.position, self.quat, self.cam_vec, image = self.aruco_detection(image, dictionary, rvecs, tvecs)
 
-                self.position2, self.quat2, self.cam_vec2, image2 = self.aruco_detection(image2, dictionary, rvecs2, tvecs2)
+                self.position, self.quat, self.cam_vec, image = self.aruco_detection(image, dictionary, rvecs, tvecs, self.cx_list, self.cy_list, self.cz_list, self.mean_cx, self.mean_cy, self.mean_cz)
+                
+                if self.cam_vec is not None:
+                    self.cx_list.append(float(self.cam_vec[0]))
+                    self.cy_list.append(float(self.cam_vec[1]))
+                    self.cz_list.append(float(self.cam_vec[2]))
+
+                    self.mean_cx = statistics.mean(self.cx_list)
+                    self.mean_cy = statistics.mean(self.cy_list)
+                    self.mean_cz = statistics.mean(self.cz_list)
+
+                self.position2, self.quat2, self.cam_vec2, image2 = self.aruco_detection(image2, dictionary, rvecs2, tvecs2, self.cx_list2, self.cy_list2, self.cz_list2, self.mean2_cx, self.mean2_cy, self.mean2_cz)
+
+                if self.cam_vec2 is not None:
+                    self.cx_list2.append(float(self.cam_vec2[0]))
+                    self.cy_list2.append(float(self.cam_vec2[1]))
+                    self.cz_list2.append(float(self.cam_vec2[2]))
+
+                    self.mean2_cx = statistics.mean(self.cx_list2)
+                    self.mean2_cy = statistics.mean(self.cy_list2)
+                    self.mean2_cz = statistics.mean(self.cz_list2)
 
                 # self.cam_vec, self.cam_vec2 = None, None
 
-                # self.position = None
+                self.position = None
                 # self.position2 = None
 
                 if self.position is not None:
@@ -282,13 +308,13 @@ class computer_vision():
                 if self.position2 is not None:
                     #Corrected Position Camera 2
                     
-                    self.position2[0] = self.position2[0]*0.901 + 1.19
-                    self.position2[1] = self.position2[1]*0.927 + 0.0131
-                    self.position2[2] = self.position2[2]*0.874 - 1.77
+                    self.position2[0] = self.position2[0]*0.946 + 0.00334
+                    self.position2[1] = self.position2[1]*0.892 - 0.656
+                    self.position2[2] = self.position2[2]*0.815 - 1.55
 
                     # Z correction
-                    self.position2[0] -= -self.position2[2]*0.0743 + 0.147
-                    self.position2[1] -= -self.position2[2]*0.000529 + 0.00895
+                    self.position2[0] -= -self.position2[2]*0.00821 + 0.00828
+                    self.position2[1] -= self.position2[2]*0.025 - 0.0366
 
                     # print('Posição 2:', self.position2.T)
                 
@@ -305,6 +331,18 @@ class computer_vision():
                     self.position_mean = self.position2
 
                 # if step % 10 == 0:
+
+                # self.cx_list2.append(float(self.cam_vec[0]))
+                # self.cy_list2.append(float(self.cam_vec[1]))
+                # self.cz_list2.append(float(self.cam_vec[2]))
+
+                # if len(self.cx_list2) == 2000:
+
+                #     std_cx = np.std(self.cx_list2)
+                #     std_cy = np.std(self.cy_list2)
+                #     std_cz = np.std(self.cz_list2)
+
+                #     print('Standard Deviation: \n cx_C2 = {0} \n cy_C2 = {1} \n cz_C2 = {2}'.format(std_cx, std_cy, std_cz))
 
                 cv.imshow('Drone Camera',image)
                 cv.imshow('Drone Camera 2', image2)
